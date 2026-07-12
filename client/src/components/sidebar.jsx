@@ -5,16 +5,15 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId }) {
     const [allChannels, setAllChannels] = useState([]);
     const [newChannelName, setNewChannelName] = useState('');
     const [error, setError] = useState('');
-    const [view, setView] = useState('my'); //'my' or 'Browse'
+    const [view, setView] = useState('my');
 
-    //helper - eveery fetch needs the authorization
-    //putting it here avoids repeating it in every fetch call
+    
     const authHeaders = {
         'Content-Type': "application/json",
         'Authorization': `Bearer ${accessToken}`
     };
 
-    //fetch channels the user is already in
+    
     const fetchMyChannels = async () => {
         try {
             const res = await fetch('http://localhost:5000/api/channels', {
@@ -27,7 +26,7 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId }) {
         }
     };
 
-    //fetch all public channels for browsing
+    
     const fetchAllChannels = async () => {
         try {
             const res = await fetch('http://localhost:5000/api/channels/all', {
@@ -40,7 +39,7 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId }) {
         }
     };
 
-    //run on mount
+   
     useEffect(() => {
         fetchAllChannels();
         fetchMyChannels();
@@ -65,7 +64,7 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId }) {
             }
 
             setNewChannelName('');
-            //Refresh my channels list after creating
+            
             fetchMyChannels();
             fetchAllChannels();
         } catch (err) {
@@ -87,14 +86,14 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId }) {
                 return;
             }
 
-            //refresh both list after joining
+           
             fetchMyChannels();
         } catch (err) {
             console.error(err)
         }
     };
 
-    //check if user is already in a channel
+   
     const isMember = (channelId) => {
         return myChannels.some(c => c.id === channelId);
     };
@@ -115,8 +114,6 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId }) {
                 </button>
             </div>
 
-
-            //my channels list
 
             {view === 'my' && (
                 <>
@@ -157,7 +154,6 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId }) {
                 </>
             )}
 
-            //Browse all Channels
             {view === 'browse' && (
                 <>
                     {allChannels.map(channel => {

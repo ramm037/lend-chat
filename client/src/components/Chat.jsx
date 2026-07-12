@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { io } from 'socket.io-client';
 import Sidebar from "./sidebar";
 import ChannelView from "./ChannelView";
@@ -9,11 +9,12 @@ function Chat({ accessToken, user, onLogout }) {
     const [selectedChannel, setSelectedChannel] = useState(null);
 
     useEffect(() => {
-        // send access token in socket handshake auth object-
-        // server's io.use() middleware raeds socket.handshake.auth.token
+       
         const newSocket = io('http://localhost:5000', {
             auth: { token: accessToken }
         });
+      
+        setSocket(newSocket);
 
         newSocket.on('connect', () => {
             setConnected(true);
@@ -23,18 +24,15 @@ function Chat({ accessToken, user, onLogout }) {
             console.log('socket error:', err.message);
         });
 
-        setSocket(newSocket);
-
-        //disconnect socket when component unmounts or token changes
+        
         return () => newSocket.disconnect();
     }, [accessToken]);
 
-    // When user selects a new channel, tell the socket to join that room
+    
     const handleSelectChannel = (channel) => {
         setSelectedChannel(channel);
         if (socket) {
-            // This triggers the 'join_channel' event on server
-            // which calls socket.join('channel_<id>')
+            
             socket.emit('join_channel', channel.id);
         }
     };
@@ -62,9 +60,12 @@ function Chat({ accessToken, user, onLogout }) {
                 </div>
 
                 {/* Channel content */}
+                //pass socket to ChannelView so it can listen for messages and send messages
                 <ChannelView
                     channel={selectedChannel}
                     accessToken={accessToken}
+                    socket={socket}
+                    
                 />
             </div>
         </div>

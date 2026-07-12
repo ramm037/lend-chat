@@ -1,4 +1,4 @@
-const express = require ('express');
+const express = require('express');
 const db = require('../db');
 const authMiddleware = require('../middleware/auth');
 
@@ -11,10 +11,10 @@ router.use(authMiddleware);
 //full message histrory is required here not just new ones arriving in real time
 
 router.get('/:channelId', async (req, res) => {
-    const { channelId }= req.params;
+    const { channelId } = req.params;
     const userId = req.user.id;
 
-    try{
+    try {
         //security check :: only members of a channel can see its messages
         const [membership] = await db.query(
             'SELECT * FROM channel_members WHERE channel_id = ? AND user_id = ?',
@@ -32,14 +32,14 @@ router.get('/:channelId', async (req, res) => {
         const [messages] = await db.query(
             `SELECT m.id, m.content, m.image_url, m.created_at,
                     u.id as sender_id, u.username, u.avatar_url
-             FROM messages m
-             JOIN users u ON m.sender_id = u.id
-             WHERE m.channel_id = ?
-             ORDER BY m.created_at ASC`,
+            FROM messages m
+            JOIN users u ON m.sender_id = u.id
+            WHERE m.channel_id = ?
+            ORDER BY m.created_at ASC`,
             [channelId]
         );
 
-        res.json({messages});
+        res.json({ messages });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Server error' });

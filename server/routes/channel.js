@@ -13,38 +13,38 @@ router.use(authMiddleware)
 
 //POST /api/channels
 router.post('/', async (req, res) => {
-    const { name, is_group = true } = req.body;
-    //req.user comes from authMiddleware - it decoded the JWT
-    const userId = req.user.id;
+  const { name, is_group = true } = req.body;
+  //req.user comes from authMiddleware - it decoded the JWT
+  const userId = req.user.id;
 
-    if (!name || name.trim() === '') {
-        return res.status(400).json({ error: 'Channel name required' });
-    }
+  if (!name || name.trim() === '') {
+    return res.status(400).json({ error: 'Channel name required' });
+  }
 
-    try {
-        //create channel row
-        const [result] = await db.query(
-            'INSERT INTO channels (name, is_group, created_by) VALUES (?,?,?)',
-            [name.trim(), is_group, userId]
-        );
+  try {
+    //create channel row
+    const [result] = await db.query(
+      'INSERT INTO channels (name, is_group, created_by) VALUES (?,?,?)',
+      [name.trim(), is_group, userId]
+    );
 
-        const channelId = result.insertId;
+    const channelId = result.insertId;
 
-        //creator automatically becomes a memeber with the admin role
-        // you can't create a channel and not be in it
-        await db.query(
-            'INSERT INTO channel_members (channel_id, user_id, role) VALUES (?, ?, ?)',
-            [channelId, userId, 'admin']
-        );
+    //creator automatically becomes a memeber with the admin role
+    // you can't create a channel and not be in it
+    await db.query(
+      'INSERT INTO channel_members (channel_id, user_id, role) VALUES (?, ?, ?)',
+      [channelId, userId, 'admin']
+    );
 
-        res.status(201).json({
-            message: 'Channel Created',
-            channel: { id: channelId, name, is_group, created_by: userId }
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Server Error' });
-    }
+    res.status(201).json({
+      message: 'Channel Created',
+      channel: { id: channelId, name, is_group, created_by: userId }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server Error' });
+  }
 });
 // two queries in one rout - fist create the channel, then add creator
 // as admin member. both must succeed
@@ -52,44 +52,44 @@ router.post('/', async (req, res) => {
 //JOIN CHANNEL
 
 router.post('/:id/join', async (req, res) => {
-    const channelId = req.params.id;
-    const userId = req.user.id;
+  const channelId = req.params.id;
+  const userId = req.user.id;
 
-    try {
-        //check the channel if its exists or not
-        const [channel] = await db.query(
-            'SELECT * FROM channels WHERE id = ?',
-            [channelId]
-        );
+  try {
+    //check the channel if its exists or not
+    const [channel] = await db.query(
+      'SELECT * FROM channels WHERE id = ?',
+      [channelId]
+    );
 
-        if (channel.length === 0) {
-            return res.status(404).json({ error: 'Channel not found' });
-        }
-
-        //check if already a member - prevent duplicate rows
-        //channel_members has a composite primary key (channel_id,user_id)
-        //so inserting a duplicate would throw a DB error anyway
-        //but checking first gives a cleaner error message
-        const [existing] = await db.query(
-            'SELECT * FROM channel_members WHERE channel_id = ? AND user_id=?',
-            [channelId, userId]
-        );
-
-        if (existing.length > 0) {
-            return res.status(200).json({ error: "Already a member" });
-        }
-
-        await db.query(
-            'INSERT INTO channel_members (channel_id, user_id, role) VALUES (?, ?, ?)',
-            [channelId, userId, 'member']
-        );
-
-        res.json({ message: 'Joined Channel' });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Server error' });
+    if (channel.length === 0) {
+      return res.status(404).json({ error: 'Channel not found' });
     }
+
+    //check if already a member - prevent duplicate rows
+    //channel_members has a composite primary key (channel_id,user_id)
+    //so inserting a duplicate would throw a DB error anyway
+    //but checking first gives a cleaner error message
+    const [existing] = await db.query(
+      'SELECT * FROM channel_members WHERE channel_id = ? AND user_id=?',
+      [channelId, userId]
+    );
+
+    if (existing.length > 0) {
+      return res.status(200).json({ error: "Already a member" });
+    }
+
+    await db.query(
+      'INSERT INTO channel_members (channel_id, user_id, role) VALUES (?, ?, ?)',
+      [channelId, userId, 'member']
+    );
+
+    res.json({ message: 'Joined Channel' });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 // GET /api/channels/all
@@ -118,41 +118,41 @@ router.get('/all', async (req, res) => {
 //GET /api/channels/:id
 
 router.get('/:id', async (req, res) => {
-    const channelId = req.params.id;
-    const userId = req.user.id;
+  const channelId = req.params.id;
+  const userId = req.user.id;
 
-    try {
-        //verify requesting user is actually a member
-        const [membership] = await db.query(
-            'SELECT * FROM channel_members WHERE channel_id = ? AND user_id = ?',
-            [channelId, userId]
-        );
+  try {
+    //verify requesting user is actually a member
+    const [membership] = await db.query(
+      'SELECT * FROM channel_members WHERE channel_id = ? AND user_id = ?',
+      [channelId, userId]
+    );
 
-        if (membership.length === 0) {
-            return res.status(403).json({ error: 'Not a member of this channel' });
-        }
-
-        //get channel info
-        const [channel] = await db.query(
-            'SELECT * FROM channels WHERE id = ?',
-            [channelId]
-        );
-
-        //get all members of this channel with their username
-        const [members] = await db.query(
-            'SELECT u.id, u.username, u.avatar_url, cm.role FROM users u JOIN channel_members cm ON u.id = cm.user_id WHERE cm.channel_id = ?',
-            [channelId]
-        );
-
-        res.json({
-            channel: channel[0],
-            members
-        });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Server error' });
+    if (membership.length === 0) {
+      return res.status(403).json({ error: 'Not a member of this channel' });
     }
+
+    //get channel info
+    const [channel] = await db.query(
+      'SELECT * FROM channels WHERE id = ?',
+      [channelId]
+    );
+
+    //get all members of this channel with their username
+    const [members] = await db.query(
+      'SELECT u.id, u.username, u.avatar_url, cm.role FROM users u JOIN channel_members cm ON u.id = cm.user_id WHERE cm.channel_id = ?',
+      [channelId]
+    );
+
+    res.json({
+      channel: channel[0],
+      members
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 // GET /api/channels

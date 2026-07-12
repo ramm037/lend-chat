@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const channelRoutes = require('./routes/channel')
 const authRoutes = require('./routes/auth');
 const db = require('./db');
+const messageRoutes = require('./routes/messages');
 
 
 
@@ -41,6 +42,8 @@ app.use('/api/auth', authRoutes);
 
 app.use('/api/channels', channelRoutes);
 
+app.use('/api/messages', messageRoutes);
+
 //This fires every time a browser tab opens a socket connection
 //socket auth middle ware
 //runs before every socket connection'
@@ -48,8 +51,8 @@ app.use('/api/channels', channelRoutes);
 
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
-  console.log('token received in socket:' , token);
-  console.log('secret being used', )
+  console.log('token received in socket:', token);
+  console.log('secret being used',)
 
 
   if (!token) {
@@ -66,16 +69,17 @@ io.use((socket, next) => {
   }
 });
 
-io.on('connection', (socket) => {
+// This fires every time a browser tab opens a socket connection
+io.on('connection', async (socket) => {
   console.log(`${socket.user.username} connected ${socket.id}`);
 
-  try{
+  try {
     //when user connects, fetch all their channels from db
     //and join the corresponding socket.io rooms automatically
     //this means they start instantly start receiving messages from
     //all their channels without any extra client side action
 
-    const [channels] = db.query(
+    const [channels] = await db.query(
       `SELECT channel_id FROM channel_members WHERE user_id = ?`,
       [socket.user.id]
     );
@@ -83,11 +87,11 @@ io.on('connection', (socket) => {
     channels.forEach((row) => {
       //Socket.IO room name = 'channel_<id>
       //eg channel_1, channel_2 etc
-      socket.join(`channel_${row.channel_id}`);  
+      socket.join(`channel_${row.channel_id}`);
     });
 
     console.log(`${socket.user.username} joined ${channels.length} channel rooms`);
-  }catch (err) {
+  } catch (err) {
     console.error('Error joining rooms:', err);
   }
 
@@ -98,14 +102,70 @@ io.on('connection', (socket) => {
     console.log(`${socket.user.username} joined room channel_${channelId}`);
   });
 
+  //SEND MESSAGE 
+  //cleint emits this when user hits send
+  //{ channelId, content} comes from the react input.
+  socket.on('send_message', async ({ channelId, content }) => {
+
+    console.log('send_message hit:', channelId, content);
+    //Never trust the client - validate on server too
+    if (!content || !content.trim()) return;
+    if (!channelId) return;
+
+
+
+    try {
+      //verify sender is actually a memeber of this channel
+      //without this anyone can emit send_message
+      //with any channelId and post into channels they never joined
+      const [membership] = await db.query(
+        'SELECT * FROM channel_members WHERE channel_id = ? AND user_id = ?',
+        [channelId, socket.user.id]
+      );
+
+      if (membership.length === 0) {
+        socket.emit('error', { message: "Not a member of this channel" });
+        return;
+      }
+
+      //save messages to DB first - then broadcast
+      //if you broadcast first and then DB insert fails
+      //everyone sees a message that doesn't actaully exist
+      const [result] = await db.query(
+        'INSERT INTO messages (channel_id, sender_id, content) VALUES (?,?,?)',
+        [channelId, socket.user.id, content.trim()]
+      );
+
+      //build the message object to send to clients-
+      //same shape as what the REST endpoint returns
+      // so frontend can handle both identically
+      const newMessage = {
+        id: result.insertId,
+        channel_id: channelId,
+        content: content.trim(),
+        sender_id: socket.user.id,
+        username: socket.user.username,
+        created_at: new Date().toISOString()
+      };
+
+      //io.on() broadcasts to everyone in the  room including sender.
+      //THis is intentional - sender needs to see their own message
+      //appear with the proper DB id and timestamp
+      console.log('emitting to room:', `channel_${channelId}`);
+      io.to(`channel_${channelId}`).emit('new_message', newMessage);
+      console.log('newMessage object:', newMessage);
+
+    } catch (err) {
+      console.error('Error sending message:', err);
+      socket.emit('error', { message: 'Failed to load message' })
+
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log(`${socket.user.username} disconnected`);
   });
 });
-
-
-
-// This fires every time a browser tab opens a socket connection
 
 
 const PORT = process.env.PORT || 5000;
