@@ -9,6 +9,7 @@ const channelRoutes = require('./routes/channel')
 const authRoutes = require('./routes/auth');
 const db = require('./db');
 const messageRoutes = require('./routes/messages');
+const dmRoutes = require('./routes/dm')
 
 
 
@@ -43,6 +44,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/channels', channelRoutes);
 
 app.use('/api/messages', messageRoutes);
+
+app.use('/api/dms', dmRoutes);
 
 //This fires every time a browser tab opens a socket connection
 //socket auth middle ware
@@ -80,7 +83,9 @@ io.on('connection', async (socket) => {
     //all their channels without any extra client side action
 
     const [channels] = await db.query(
-      `SELECT channel_id FROM channel_members WHERE user_id = ?`,
+      `SELECT channel_id FROM channel_members cm
+       JOIN channels c ON cm.channel_id = c.id
+       WHERE cm.user_id = ? AND c.is_dm = FALSE`,
       [socket.user.id]
     );
 
@@ -90,7 +95,19 @@ io.on('connection', async (socket) => {
       socket.join(`channel_${row.channel_id}`);
     });
 
-    console.log(`${socket.user.username} joined ${channels.length} channel rooms`);
+    //Join DM rooms too
+    const [dms] = await db.query(
+      `SELECT channel_id FROM channel_members cm
+      JOIN channels c ON cm.channel_id = c.id
+      WHERE cm.user_id = ? AND c.is_dm = TRUE`,
+      [socket.user.id]
+    );
+
+    dms.forEach(row => socket.join(`channel_${row.channel_id}`));
+
+    console.log(`${socket.user.username} joined ${channels.length} channels, ${dms.length} DMs`);
+
+
   } catch (err) {
     console.error('Error joining rooms:', err);
   }
@@ -101,6 +118,12 @@ io.on('connection', async (socket) => {
     socket.join(`channel_${channelId}`);
     console.log(`${socket.user.username} joined room channel_${channelId}`);
   });
+
+  //join dms mid session
+  socket.on('join_dm', (dmId) => {
+    socket.join(`dm_${dmId}`);
+    console.log(`${socket.user.username} joined room dm_${dmId}`);
+  })
 
   //SEND MESSAGE 
   //cleint emits this when user hits send
@@ -159,6 +182,50 @@ io.on('connection', async (socket) => {
       console.error('Error sending message:', err);
       socket.emit('error', { message: 'Failed to load message' })
 
+    }
+  });
+
+  //-----DM messages----------------------
+  socket.on('send_dm', async ({ dmId, content }) => {
+    if (!content?.trim() || !dmId) return;
+
+    try {
+      //verify sender is a member of this DM
+      const [membership] = await db.query(
+        `SELECT cm.* FROM channel_members cm
+        JOIN channels c ON cm.channel_id = c.id
+        WHERE cm.channel_id = ? AND cm.user_id = ? AND c.is_dm = TRUE`,
+        [dmId, socket.user.id]
+      );
+
+      if (membership.length === 0) {
+        socket.emit('error', { message: "Not a member of this DM" });
+        return;
+      }
+
+
+      //save to messages table - same table as group messages
+      const [result] = await db.query(
+        `INSERT INTO messages (channel_id, sender_id, content) VALUES (?, ?, ?)`,
+        [dmId, socket.user.id, content.trim()]
+      );
+
+      const newDM = {
+        id: result.insertId,
+        dm_id: dmId,
+        sender_id: socket.user.id,
+        content: content.trim(),
+        username: socket.user.username,
+        created_at: new Date().toISOString()
+      };
+
+      //Broadcast to dm room - both users receive at
+      io.to(`dm_${dmId}`).emit('new_dm', newDM);
+
+
+    } catch (error) {
+      console.error(error);
+      socket.emit('error', { message: 'Failed to send DM' });
     }
   });
 
