@@ -10,6 +10,8 @@ const authRoutes = require('./routes/auth');
 const db = require('./db');
 const messageRoutes = require('./routes/messages');
 const dmRoutes = require('./routes/dm')
+const presenceRoutes = require('./routes/presence');
+
 
 
 
@@ -40,6 +42,8 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+
+app.use('/api/presence', presenceRoutes);
 
 app.use('/api/channels', channelRoutes);
 
@@ -72,168 +76,200 @@ io.use((socket, next) => {
   }
 });
 
-// This fires every time a browser tab opens a socket connection
 io.on('connection', async (socket) => {
-  console.log(`${socket.user.username} connected ${socket.id}`);
+  console.log(`${socket.user.username} connected (${socket.id})`);
+
+  const userId = socket.user.id;
+  const username = socket.user.username;
 
   try {
-    //when user connects, fetch all their channels from db
-    //and join the corresponding socket.io rooms automatically
-    //this means they start instantly start receiving messages from
-    //all their channels without any extra client side action
-
+    //JOIN GROUP CHANNELS------------------------------
     const [channels] = await db.query(
       `SELECT channel_id FROM channel_members cm
        JOIN channels c ON cm.channel_id = c.id
        WHERE cm.user_id = ? AND c.is_dm = FALSE`,
-      [socket.user.id]
+      [userId]
     );
 
-    channels.forEach((row) => {
-      //Socket.IO room name = 'channel_<id>
-      //eg channel_1, channel_2 etc
-      socket.join(`channel_${row.channel_id}`);
-    });
+    channels.forEach(row => socket.join(`channel_${row.channel_id}`));
 
-    //Join DM rooms too
+    //JOIN DM ROOMS ------------------------------------
     const [dms] = await db.query(
       `SELECT channel_id FROM channel_members cm
-      JOIN channels c ON cm.channel_id = c.id
-      WHERE cm.user_id = ? AND c.is_dm = TRUE`,
-      [socket.user.id]
+       JOIN channels c ON cm.channel_id = c.id
+       WHERE cm_user_id = ? AND c.is_dm = TRUE`,
+      [userId]
     );
 
-    dms.forEach(row => socket.join(`channel_${row.channel_id}`));
+    dms.forEach(row => socket.join(`dm_${row.channel_id}`));
 
-    console.log(`${socket.user.username} joined ${channels.length} channels, ${dms.length} DMs`);
+    console.log(`${username} joined ${channels.length} channels, ${dms.length} DMs`);
 
+    //REDIS PRESENCE - SET ONLINE -----------------------------
+    //STORE USER AS ONLINE IN REDIS
+    //EX 3600 = KEY EXPIRES AFTER 1 HOUR AUTOMATICALLY  
+    //THIS MEANS EVEN IF DISCONNECT EVENT SOMEHOW MISSES
+    //USER WON'T APPEAR ONLINE FOREVER
+    await redis.set(`online:${userId}`, 'true', 'EX', 3600);
+
+    //notify everyone in users's channels that user is now online
+    channels.forEach(row => {
+      socket.to(`channel_${row.channel_id}`).emit('user_online', {
+        userId,
+        username
+      });
+    });
 
   } catch (err) {
-    console.error('Error joining rooms:', err);
+    console.error('Connection error:', err);
   }
 
-  // When user joins a new channel mid-session,
-  // add them to the socket room immediately
+  //JOIN CHANNEL MID SESSION-------------------------------------
   socket.on('join_channel', (channelId) => {
     socket.join(`channel_${channelId}`);
-    console.log(`${socket.user.username} joined room channel_${channelId}`);
   });
 
-  //join dms mid session
+  //JOIN DM MID-SESSION--------------------------------
   socket.on('join_dm', (dmId) => {
     socket.join(`dm_${dmId}`);
-    console.log(`${socket.user.username} joined room dm_${dmId}`);
-  })
+  });
 
-  //SEND MESSAGE 
-  //cleint emits this when user hits send
-  //{ channelId, content} comes from the react input.
+  //SEND GRP MESSAGE
   socket.on('send_message', async ({ channelId, content }) => {
-
-    console.log('send_message hit:', channelId, content);
-    //Never trust the client - validate on server too
-    if (!content || !content.trim()) return;
-    if (!channelId) return;
-
-
+    if (!content?.trim() || !channelId) return;
 
     try {
-      //verify sender is actually a memeber of this channel
-      //without this anyone can emit send_message
-      //with any channelId and post into channels they never joined
       const [membership] = await db.query(
-        'SELECT * FROM channel_members WHERE channel_id = ? AND user_id = ?',
-        [channelId, socket.user.id]
+        'SELECT * FROM channel_members WHERE channel_id=? AND user_id = ?',
+        [channelId, userId]
       );
 
       if (membership.length === 0) {
-        socket.emit('error', { message: "Not a member of this channel" });
+        socket.emit('error', { message: 'Not a members' });
         return;
       }
 
-      //save messages to DB first - then broadcast
-      //if you broadcast first and then DB insert fails
-      //everyone sees a message that doesn't actaully exist
       const [result] = await db.query(
-        'INSERT INTO messages (channel_id, sender_id, content) VALUES (?,?,?)',
-        [channelId, socket.user.id, content.trim()]
+        'INSERT INTO messages (channel_id, sender_id, content) VALUES (?, ?, ?)',
+        [channelId, userId, content.trim()]
       );
 
-      //build the message object to send to clients-
-      //same shape as what the REST endpoint returns
-      // so frontend can handle both identically
       const newMessage = {
         id: result.insertId,
         channel_id: channelId,
         content: content.trim(),
-        sender_id: socket.user.id,
-        username: socket.user.username,
+        sender_id: userId,
+        username,
         created_at: new Date().toISOString()
       };
 
-      //io.on() broadcasts to everyone in the  room including sender.
-      //THis is intentional - sender needs to see their own message
-      //appear with the proper DB id and timestamp
-      console.log('emitting to room:', `channel_${channelId}`);
       io.to(`channel_${channelId}`).emit('new_message', newMessage);
-      console.log('newMessage object:', newMessage);
-
     } catch (err) {
-      console.error('Error sending message:', err);
-      socket.emit('error', { message: 'Failed to load message' })
-
+      console.error(err);
+      socket.emit('error', { message: 'Failed to send message' });
     }
   });
 
-  //-----DM messages----------------------
+
+  //SEND DM---------------------------------------------------
+
+
   socket.on('send_dm', async ({ dmId, content }) => {
     if (!content?.trim() || !dmId) return;
 
     try {
-      //verify sender is a member of this DM
       const [membership] = await db.query(
         `SELECT cm.* FROM channel_members cm
-        JOIN channels c ON cm.channel_id = c.id
-        WHERE cm.channel_id = ? AND cm.user_id = ? AND c.is_dm = TRUE`,
-        [dmId, socket.user.id]
+      JOIN channnels c ON cm.channel_id = c.id
+      WHERE cm.channel_id = ? AND cm.user_id = ? AND c.is_dm = TRUE`,
+        [dmId, userId]
       );
 
       if (membership.length === 0) {
-        socket.emit('error', { message: "Not a member of this DM" });
+        socket.emit('error', { message: 'Not a member of this DM' });
         return;
       }
 
-
-      //save to messages table - same table as group messages
       const [result] = await db.query(
-        `INSERT INTO messages (channel_id, sender_id, content) VALUES (?, ?, ?)`,
-        [dmId, socket.user.id, content.trim()]
+        'INSERT INTO messages (channel_id, sender_id, content) VALUES (?, ?, ?)',
+        [dmId, userId, content.trim()]
       );
 
       const newDM = {
         id: result.insertId,
         dm_id: dmId,
-        sender_id: socket.user.id,
         content: content.trim(),
-        username: socket.user.username,
+        sender_id: userId,
+        username,
         created_at: new Date().toISOString()
       };
 
-      //Broadcast to dm room - both users receive at
       io.to(`dm_${dmId}`).emit('new_dm', newDM);
-
-
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
       socket.emit('error', { message: 'Failed to send DM' });
     }
   });
 
-  socket.on('disconnect', () => {
-    console.log(`${socket.user.username} disconnected`);
+  //TYPING INDICATOR ---------------------------------------------------
+  //CLIENT emits this when user starts typing
+  //server broadcasts to the room - everyone sees the indicator
+  //Nothing is aved to db typing state is purely real time
+
+  socket.on('typing_start', ({ channelId, isDM }) => {
+    const room = isDm ? `dm_${channelId}` : `channel_${channelId}`;
+
+    //socket.to() excludes sender - you don't need to see
+    //your own typing indictaor
+
+    socket.to(room).emit('user_typing', {
+      userId,
+      username,
+      channelId,
+      isDM
+    });
+  });
+
+  //clients emits this when user stops typing
+  socket.on('typing_stop', ({ channelId, isDM }) => {
+    const room = isDm ? `dm_${channelId}` : `channel_${channelId}`;
+
+    socket.to(room).emit('user_stopped_typing', {
+      userId,
+      channelId,
+      isDM
+    });
+  });
+
+  //---DISCONNECT - SET OFFLINE----------------------------
+  socket.on('disconnect', async () => {
+    console.log(`${username} disconnected`);
+
+    try {
+      //remove from redis user is now offline
+      await redis.del(`online:${userId}`);
+
+      //get user's channel to notify them
+      const [channels] = await db.query(
+        `SELECT channel_id FROM channel_members cm
+         JOIN channels c ON cm.channel_id = c.id
+         WHERE cm.user_id = ? AND c.is_dm = FALSE`,
+        [userId]
+      );
+
+      // Notify everyone in user's channels that they went offline
+      channels.forEach(row => {
+        socket.to(`channel_${row.channel_id}`).emit('user_offline', {
+          userId,
+          username
+        });
+      });
+    } catch (err) {
+      console.error('Disconnect error:', err);
+    }
   });
 });
 
 
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+
