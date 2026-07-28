@@ -5,8 +5,13 @@ function ChannelView({ channel, accessToken, socket }) {
     const [members, setMembers] = useState([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
+    const [typingUsers, setTypingUsers] = useState([]);
+    //typing users =  array of usernames currently typing
 
     const bottomRef = useRef(null);
+    const typingTimeoutRef = useRef(null);
+    //typingTimeoutRef = used to auto stop typing after 2 seconds
+    //of no keystrokes , even if the user doesn't clear the inputs
 
     useEffect(() => {
         if (!channel) return;
@@ -45,26 +50,46 @@ function ChannelView({ channel, accessToken, socket }) {
         return () => {
             setMessages([]);
             setMembers([]);
+            setTypingUsers([]);
         };
     }, [channel]);
 
+    //message = typing listeners
     useEffect(() => {
         if (!socket) return;
 
-        console.log('registering new_message listener, socket id:', socket.id);
-
         const handleNewMessage = (message) => {
-            console.log('incoming message:', message);
-            setMessages(prev => [...prev, message]);
+            if (Number(message.channel_id) === Number(channel?.id)) {
+                setMessages(prev => [...prev, message]);
+            }
         };
 
+        //Add username to typing list
+        const handleTypingStart = ({ username, channelId }) => {
+            if (Number(channelId) === Number(channel?.id)) {
+                setTypingUsers(prev =>
+                    prev.includes(username) ? prev : [...prev, username]
+                );
+            }
+        };
+
+        //remove username from typing list
+        const handleTypingStop = ({ channelId, userId }) => {
+            if (Number(channelId) === Number(channel?.id)) {
+                setTypingUsers(prev =>
+                    prev.filter(u => u !== username)
+                );
+            }
+        };
 
         socket.on('new_message', handleNewMessage);
-        console.log('listener registered');
+        socket.on('user_typing', handleTypingStart);
+        socket.on('user_stopped_typing', handleTypingStop);
 
         return () => {
-            console.log('cleaning up listener');
             socket.off('new_message', handleNewMessage);
+            socket.off('user_typing', handleTypingStart);
+            socket.off('user_stopped_typing', handleTypingStop);
         };
     }, [socket, channel]);
 
@@ -72,6 +97,23 @@ function ChannelView({ channel, accessToken, socket }) {
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
+
+
+    const handleInputChange = (e) => {
+        setInput(e.target.value);
+
+        if (!socket || !channel) return;
+
+        //emit typing_start every keystroke
+        socket.emit('typng_start', { channelId: channel.id, isDM: false });
+
+        //clear previous timeout and set a new one-
+        //if user stops typing for 2 seconds, enit typing_stop
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => {
+            socket.emit('typing_stop', { channelId: channel.id, isDM: false });
+        }, 2000);
+    };
 
     const sendMessage = () => {
         console.log('sendMessage called');
@@ -114,7 +156,7 @@ function ChannelView({ channel, accessToken, socket }) {
     return (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-            //channel header
+            {/* channel header*/}
             <div style={{
                 padding: '12px 16px',
                 borderBottom: '1px solid #eee',
@@ -169,6 +211,15 @@ function ChannelView({ channel, accessToken, socket }) {
 
 
                 <div ref={bottomRef} />
+            </div>
+
+            {/* Typing indicator */}
+            <div style={{ padding: '0 16px', height: 20, fontsize: 12, color: '#888' }}>
+                {typingUsers.length > 0 && (
+                    <span>
+                        {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
+                    </span>
+                )}
             </div>
 
 
