@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'recat';
+import { useEffect, useState } from 'react';
 
 function usePresence(accessToken, socket) {
     const [onlineUsers, setOnlineUsers] = useState({});

@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 import Sidebar from './Sidebar';
 import ChannelView from './ChannelView';
 import DMView from './DMView';
+import usePresence from '../hooks/usePresence';
 
 function Chat({ accessToken, user, onLogout }) {
   const [connected, setConnected] = useState(false);
@@ -10,6 +11,9 @@ function Chat({ accessToken, user, onLogout }) {
   const [selectedChannel, setSelectedChannel] = useState(null);
   const [selectedDM, setSelectedDM] = useState(null);
 
+  //presencehoook = returns {userId: isOnline} map
+  const onlineUsers = usePresence(accessToken, socket);
+  
   useEffect(() => {
     const newSocket = io('http://localhost:5000', {
       auth: { token: accessToken }
