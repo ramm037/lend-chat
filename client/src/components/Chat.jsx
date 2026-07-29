@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
-import Sidebar from './Sidebar';
+import Sidebar from './sidebar';
 import ChannelView from './ChannelView';
 import DMView from './DMView';
 import usePresence from '../hooks/usePresence';
@@ -52,6 +52,7 @@ function Chat({ accessToken, user, onLogout }) {
         onSelectChannel={handleSelectChannel}
         onSelectDM={handleSelectDM}
         selectedId={selectedId}
+        onlineUsers={onlineUsers}
       />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{

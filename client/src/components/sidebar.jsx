@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM }) {
+function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, onlineUsers = {} }) {
     const [myChannels, setMyChannels] = useState([]);
     const [allChannels, setAllChannels] = useState([]);
     const [myDMs, setMyDMs] = useState([]);
@@ -212,7 +212,7 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM }
                             color: view === 'browse' ? 'var(--text-h)' : 'var(--text)',
                             fontWeight: view === 'browse' ? '600' : 'normal',
                             boxShadow: view === 'browse' ? 'var(--shadow)' : 'none',
-                            
+
                             transition: 'all 0.2s ease'
                         }}
                     >
@@ -378,19 +378,26 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM }
                         return (
                             <div
                                 key={dm.id}
-                                onClick={() => onSelectChannel({ id: dm.id, name: dm.other_username, is_dm: true })}
+                                onClick={() => onSelectDM({ id: dm.id, other_username: dm.other_username })}
                                 style={{
                                     padding: '10px 12px',
                                     cursor: 'pointer',
                                     backgroundColor: isSelected ? 'var(--accent-bg)' : 'transparent',
-                                    color: isSelected ? 'var(--accent)' : 'var(--text)',
-                                    border: isSelected ? '1px solid var(--accent-border)' : '1px solid transparent',
                                     borderRadius: '8px',
                                     fontSize: '14px',
-                                    fontWeight: isSelected ? '600' : 'normal',
-                                    transition: 'all 0.15s ease'
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
                                 }}
                             >
+                                {/* Online dot */}
+                                <span style={{
+                                    width: 8, height: 8,
+                                    borderRadius: '50%',
+                                    backgroundColor: onlineUsers[dm.other_user_id] ? '#22c55e' : '#6b7280',
+                                    display: 'inline-block',
+                                    flexShrink: 0
+                                }} />
                                 @ {dm.other_username}
                             </div>
                         );

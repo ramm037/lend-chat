@@ -10,7 +10,9 @@ const authRoutes = require('./routes/auth');
 const db = require('./db');
 const messageRoutes = require('./routes/messages');
 const dmRoutes = require('./routes/dm')
+const redis = require('./redis');
 const presenceRoutes = require('./routes/presence');
+
 
 
 
@@ -97,10 +99,10 @@ io.on('connection', async (socket) => {
     const [dms] = await db.query(
       `SELECT channel_id FROM channel_members cm
        JOIN channels c ON cm.channel_id = c.id
-       WHERE cm_user_id = ? AND c.is_dm = TRUE`,
+       WHERE cm.user_id = ? AND c.is_dm = TRUE`,
       [userId]
     );
-
+    console.log('DM rooms joining:', dms.length);
     dms.forEach(row => socket.join(`dm_${row.channel_id}`));
 
     console.log(`${username} joined ${channels.length} channels, ${dms.length} DMs`);
@@ -179,8 +181,8 @@ io.on('connection', async (socket) => {
 
     try {
       const [membership] = await db.query(
-        `SELECT cm.* FROM channel_members cm
-      JOIN channnels c ON cm.channel_id = c.id
+      `SELECT cm.* FROM channel_members cm
+      JOIN channels c ON cm.channel_id = c.id
       WHERE cm.channel_id = ? AND cm.user_id = ? AND c.is_dm = TRUE`,
         [dmId, userId]
       );
@@ -217,7 +219,7 @@ io.on('connection', async (socket) => {
   //Nothing is aved to db typing state is purely real time
 
   socket.on('typing_start', ({ channelId, isDM }) => {
-    const room = isDm ? `dm_${channelId}` : `channel_${channelId}`;
+    const room = isDM ? `dm_${channelId}` : `channel_${channelId}`;
 
     //socket.to() excludes sender - you don't need to see
     //your own typing indictaor
@@ -232,10 +234,11 @@ io.on('connection', async (socket) => {
 
   //clients emits this when user stops typing
   socket.on('typing_stop', ({ channelId, isDM }) => {
-    const room = isDm ? `dm_${channelId}` : `channel_${channelId}`;
+    const room = isDM ? `dm_${channelId}` : `channel_${channelId}`;
 
     socket.to(room).emit('user_stopped_typing', {
       userId,
+      username,
       channelId,
       isDM
     });
@@ -269,6 +272,9 @@ io.on('connection', async (socket) => {
     }
   });
 });
+
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 
 

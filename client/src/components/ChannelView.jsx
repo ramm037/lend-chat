@@ -74,10 +74,10 @@ function ChannelView({ channel, accessToken, socket }) {
         };
 
         //remove username from typing list
-        const handleTypingStop = ({ channelId, userId }) => {
+        const handleTypingStop = ({ channelId, username: typingUsername }) => {
             if (Number(channelId) === Number(channel?.id)) {
                 setTypingUsers(prev =>
-                    prev.filter(u => u !== username)
+                    prev.filter(u => u !== typingUsername)
                 );
             }
         };
@@ -105,7 +105,7 @@ function ChannelView({ channel, accessToken, socket }) {
         if (!socket || !channel) return;
 
         //emit typing_start every keystroke
-        socket.emit('typng_start', { channelId: channel.id, isDM: false });
+        socket.emit('typing_start', { channelId: channel.id, isDM: false });
 
         //clear previous timeout and set a new one-
         //if user stops typing for 2 seconds, enit typing_stop
@@ -127,6 +127,11 @@ function ChannelView({ channel, accessToken, socket }) {
             channelId: channel.id,
             content: input.trim()
         });
+
+        // Stop typing when message sent
+        socket.emit('typing_stop', { channelId: channel.id, isDM: false });
+        clearTimeout(typingTimeoutRef.current);
+        
         setInput('');
     };
 
@@ -194,10 +199,10 @@ function ChannelView({ channel, accessToken, socket }) {
                         gap: 2
                     }}>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                            <span style={{ fontweight: 'bold', fontSize: 14 }}>
+                            <span style={{ fontWeight: 'bold', fontSize: 14 }}>
                                 {msg.username}
                             </span>
-                            <span style={{ fontsize: 11, color: '#aaa' }}>
+                            <span style={{ fontSize: 11, color: '#aaa' }}>
                                 {new Date(msg.created_at).toLocaleTimeString([], {
                                     hour: '2-digit',
                                     minute: '2-digit'
@@ -231,7 +236,7 @@ function ChannelView({ channel, accessToken, socket }) {
             }}>
                 <input
                     value={input}
-                    onChange={e => setInput(e.target.value)}
+                    onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
                     placeholder={`Message #${channel.name}`}
                     style={{

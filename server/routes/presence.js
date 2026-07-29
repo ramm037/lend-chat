@@ -9,7 +9,8 @@ router.use(authMiddleware);
 // GET /api/presence 
 // Returns online status of all users in yours channel
 router.get('/', async (req,res) => {
-    const usrId = req.user.id;
+    const userId = req.user.id;
+    const username = req.user.username;
 
     try {
         //GET all users who share a achannel with you
@@ -25,7 +26,7 @@ router.get('/', async (req,res) => {
         //check Redis for each user's online status
         //Promise.all runs all Redis checs simultaneously
         const usersWithStatus = await Promise.all(
-            users.map(async (users) => {
+            users.map(async (user) => {
                 const isOnline = await redis.get(`online:${user.id}`);
                 return {
                     ...user,
@@ -34,7 +35,7 @@ router.get('/', async (req,res) => {
             })
         );
 
-        res.json({ users: userWithStatus });
+        res.json({ users: usersWithStatus });
     } catch(err) {
         console.error(err);
         res.status(500).json({ error: 'Server error'});

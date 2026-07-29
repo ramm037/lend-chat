@@ -4,6 +4,8 @@ function DMView({ dm, accessToken, socket }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [typingUsers, setTypingUsers] = useState([]);
+  const typingTimeoutRef = useRef(null);
   const bottomRef = useRef(null);
 
   // Load DM message history
@@ -13,7 +15,6 @@ function DMView({ dm, accessToken, socket }) {
     const fetchMessages = async () => {
       setLoading(true);
       try {
-        // Reuse the same messages endpoint — DM is just a channel
         const res = await fetch(
           `http://localhost:5000/api/messages/${dm.id}`,
           { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -28,27 +29,65 @@ function DMView({ dm, accessToken, socket }) {
     };
 
     fetchMessages();
-    return () => setMessages([]);
+    return () => {
+      setMessages([]);
+      setTypingUsers([]);
+    };
   }, [dm]);
 
-  // Listen for incoming DMs
+  // Listen for incoming DMs + typing events
   useEffect(() => {
     if (!socket || !dm) return;
 
     const handleNewDM = (message) => {
-      if (message.dm_id === dm.id) {
+      // Fix — Number comparison to handle string/number mismatch
+      if (Number(message.dm_id) === Number(dm.id)) {
         setMessages(prev => [...prev, message]);
       }
     };
 
+    const handleTypingStart = ({ username, channelId }) => {
+      if (Number(channelId) === Number(dm.id)) {
+        setTypingUsers(prev =>
+          prev.includes(username) ? prev : [...prev, username]
+        );
+      }
+    };
+
+    const handleTypingStop = ({ channelId, username: typingUsername }) => {
+      if (Number(channelId) === Number(dm.id)) {
+        setTypingUsers(prev => prev.filter(u => u !== typingUsername));
+      }
+    };
+
     socket.on('new_dm', handleNewDM);
-    return () => socket.off('new_dm', handleNewDM);
+    socket.on('user_typing', handleTypingStart);
+    socket.on('user_stopped_typing', handleTypingStop);
+
+    return () => {
+      socket.off('new_dm', handleNewDM);
+      socket.off('user_typing', handleTypingStart);
+      socket.off('user_stopped_typing', handleTypingStop);
+    };
   }, [socket, dm]);
 
   // Auto scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const handleInputChange = (e) => {
+    setInput(e.target.value);
+    if (!socket || !dm) return;
+
+    // isDM: true so server uses dm_ room prefix
+    socket.emit('typing_start', { channelId: dm.id, isDM: true });
+
+    clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit('typing_stop', { channelId: dm.id, isDM: true });
+    }, 2000);
+  };
 
   const sendDM = () => {
     if (!input.trim() || !socket || !dm) return;
@@ -57,6 +96,10 @@ function DMView({ dm, accessToken, socket }) {
       dmId: dm.id,
       content: input.trim()
     });
+
+    // Stop typing indicator on send
+    socket.emit('typing_stop', { channelId: dm.id, isDM: true });
+    clearTimeout(typingTimeoutRef.current);
 
     setInput('');
   };
@@ -102,11 +145,20 @@ function DMView({ dm, accessToken, socket }) {
         <div ref={bottomRef} />
       </div>
 
+      {/* Typing indicator */}
+      <div style={{ padding: '0 16px', height: 20, fontSize: 12, color: '#888' }}>
+        {typingUsers.length > 0 && (
+          <span>
+            {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
+          </span>
+        )}
+      </div>
+
       {/* Input */}
       <div style={{ padding: 16, borderTop: '1px solid #eee', display: 'flex', gap: 8 }}>
         <input
           value={input}
-          onChange={e => setInput(e.target.value)}
+          onChange={handleInputChange}
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendDM())}
           placeholder={`Message @ ${dm.other_username}`}
           style={{ flex: 1, padding: '8px 12px', borderRadius: 4, border: '1px solid #ccc', fontSize: 14 }}
@@ -114,7 +166,7 @@ function DMView({ dm, accessToken, socket }) {
         <button
           onClick={sendDM}
           disabled={!input.trim()}
-          style={{ padding: '8px 16px', borderRadius: 4, background: '#007bff', color: 'white', border: 'none' }}
+          style={{ padding: '8px 16px', borderRadius: 4, background: input.trim() ? '#007bff' : '#ccc', color: 'white', border: 'none', cursor: input.trim() ? 'pointer' : 'not-allowed' }}
         >
           Send
         </button>
