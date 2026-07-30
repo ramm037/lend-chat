@@ -12,6 +12,8 @@ const messageRoutes = require('./routes/messages');
 const dmRoutes = require('./routes/dm')
 const redis = require('./redis');
 const presenceRoutes = require('./routes/presence');
+const readsRoutes = require('./routes/reads');
+
 
 
 
@@ -52,6 +54,8 @@ app.use('/api/channels', channelRoutes);
 app.use('/api/messages', messageRoutes);
 
 app.use('/api/dms', dmRoutes);
+
+app.usw('/api/routes', readsRoutes);
 
 //This fires every time a browser tab opens a socket connection
 //socket auth middle ware
@@ -181,7 +185,7 @@ io.on('connection', async (socket) => {
 
     try {
       const [membership] = await db.query(
-      `SELECT cm.* FROM channel_members cm
+        `SELECT cm.* FROM channel_members cm
       JOIN channels c ON cm.channel_id = c.id
       WHERE cm.channel_id = ? AND cm.user_id = ? AND c.is_dm = TRUE`,
         [dmId, userId]
@@ -269,6 +273,32 @@ io.on('connection', async (socket) => {
       });
     } catch (err) {
       console.error('Disconnect error:', err);
+    }
+  });
+
+  // user opened a channel - mark as read and notify sender
+  socket.on('mark_read', async ({ channelId }) => {
+    if (!channelId) return;
+
+    try {
+      //update last_read timestamp
+      await db.query(
+        `INSERT INTO channel_last_read (user_id, channel_id, last_read_at)
+        VALUES (?, ?. NOW())
+        ON DUPLICATE KEY UPDATE last_read_at = NOW()`,
+        [userId, channelId]
+      );
+
+      //Notify everyone in the channel that this user read the messages
+      //sender sees their message was read
+      socket.to(`channel_${channelId}`).emit('messages_read', {
+        channelId,
+        readBy: userId,
+        readByUsername: username,
+        readAt: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error('mark_read error:', err)
     }
   });
 });
