@@ -15,10 +15,6 @@ const presenceRoutes = require('./routes/presence');
 const readsRoutes = require('./routes/reads');
 
 
-
-
-
-
 const app = express();
 app.use(cors({
   origin: 'http://localhost:5173',
@@ -55,7 +51,7 @@ app.use('/api/messages', messageRoutes);
 
 app.use('/api/dms', dmRoutes);
 
-app.usw('/api/routes', readsRoutes);
+app.use('/api/routes', readsRoutes);
 
 //This fires every time a browser tab opens a socket connection
 //socket auth middle ware

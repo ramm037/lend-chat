@@ -70,3 +70,4 @@ router.post('/mark', async (req, res) => {
     }
 });
 
+module.exports = router;

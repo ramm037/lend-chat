@@ -4,6 +4,7 @@ import Sidebar from './sidebar';
 import ChannelView from './ChannelView';
 import DMView from './DMView';
 import usePresence from '../hooks/usePresence';
+import useUnreadCounts from '../hooks/useUnreadCounts';
 
 function Chat({ accessToken, user, onLogout }) {
   const [connected, setConnected] = useState(false);
@@ -13,6 +14,8 @@ function Chat({ accessToken, user, onLogout }) {
 
   //presencehoook = returns {userId: isOnline} map
   const onlineUsers = usePresence(accessToken, socket);
+  const { unreadCounts, incrementUnread, clearUnread} = useUnreadCounts(accessToken, socket);
+
   
   useEffect(() => {
     const newSocket = io('http://localhost:5000', {
@@ -26,16 +29,74 @@ function Chat({ accessToken, user, onLogout }) {
     return () => newSocket.disconnect();
   }, [accessToken]);
 
+  //listen for new messages at chat level to update unread counts
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewMessage= (message) => {
+      //Only increment is the channel is NOT currently selected
+      if (Number(message.channel_id) !== Number(selectedChannel?.id)) {
+        incrementUnread(message.channel_id);
+      }
+    };
+
+    const handleNewDM = (message) => {
+      if (Number(message.channel_id) !== Number(selectedDM?.id)) {
+        incrementUnread(message.channel_id);
+      }
+    };
+
+    socket.on('new_message', handleNewMessage);
+    socket.on('new_dm', handleNewDM);
+
+    return () => {
+      socket.off('new_message', handleNewMessage);
+      socket.off('new_dm', handleNewDM);
+    };
+  }, [socket, selectedChannel, selectedDM])
+
   const handleSelectChannel = (channel) => {
     setSelectedChannel(channel);
     setSelectedDM(null); // clear DM when switching to channel
-    if (socket) socket.emit('join_channel', channel.id);
+    if (socket) {
+      socket.emit('join_channel', channel.id);
+
+      //mark channel as read when opened
+      socket.emit('mark_read', {channelId: channel.id });
+    }
+
+    //clear unread count for this channel
+    clearUnread(channel.id);
+
+    //also call REST endpoint to persist last_read
+    fetch('http://localhost:5000/api/reads/mark', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ channelId: channel.id })
+    });
   };
 
   const handleSelectDM = (dm) => {
     setSelectedDM(dm);
     setSelectedChannel(null); // clear channel when switching to DM
-    if (socket) socket.emit('join_dm', dm.id);
+    if (socket) {
+      socket.emit('join_dm', dm.id);
+      socket.emit('mark_read', { channelId: dm.id });
+    }
+
+    clearUnread(dm.id);
+
+    fetch('http://localhost:5000/api/reads/mark', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ channelId: dm.id })
+    });
   };
 
   // selectedId used by Sidebar to highlight active item
