@@ -114,6 +114,7 @@ function Chat({ accessToken, user, onLogout }) {
         onSelectDM={handleSelectDM}
         selectedId={selectedId}
         onlineUsers={onlineUsers}
+        unreadCounts={unreadCounts}
       />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{

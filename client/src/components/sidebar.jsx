@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, onlineUsers = {} }) {
+function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, onlineUsers = {}, unreadCounts = {} }) {
     const [myChannels, setMyChannels] = useState([]);
     const [allChannels, setAllChannels] = useState([]);
     const [myDMs, setMyDMs] = useState([]);
@@ -9,18 +9,14 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
     const [error, setError] = useState('');
     const [view, setView] = useState('my');
 
-
     const authHeaders = {
         'Content-Type': "application/json",
         'Authorization': `Bearer ${accessToken}`
     };
 
-
     const fetchMyChannels = async () => {
         try {
-            const res = await fetch('http://localhost:5000/api/channels', {
-                headers: authHeaders
-            });
+            const res = await fetch('http://localhost:5000/api/channels', { headers: authHeaders });
             const data = await res.json();
             setMyChannels(data.channels || []);
         } catch (err) {
@@ -28,12 +24,9 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
         }
     };
 
-
     const fetchAllChannels = async () => {
         try {
-            const res = await fetch('http://localhost:5000/api/channels/all', {
-                headers: authHeaders
-            });
+            const res = await fetch('http://localhost:5000/api/channels/all', { headers: authHeaders });
             const data = await res.json();
             setAllChannels(data.channels || []);
         } catch (err) {
@@ -42,21 +35,16 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
     };
 
     const fetchMyDMs = async () => {
-        const res = await fetch('http://localhost:5000/api/dms', {
-            headers: authHeaders
-        });
+        const res = await fetch('http://localhost:5000/api/dms', { headers: authHeaders });
         const data = await res.json();
         setMyDMs(data.dms || []);
     };
 
     const fetchAllUsers = async () => {
-        const res = await fetch('http://localhost:5000/api/dms/users', {
-            headers: authHeaders
-        });
+        const res = await fetch('http://localhost:5000/api/dms/users', { headers: authHeaders });
         const data = await res.json();
         setAllUsers(data.users || []);
-    }
-
+    };
 
     useEffect(() => {
         fetchAllChannels();
@@ -68,27 +56,19 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
     const createChannel = async () => {
         if (!newChannelName.trim()) return;
         setError('');
-
         try {
             const res = await fetch('http://localhost:5000/api/channels', {
                 method: 'POST',
                 headers: authHeaders,
                 body: JSON.stringify({ name: newChannelName })
             });
-
             const data = await res.json();
-
-            if (!res.ok) {
-                setError(data.error);
-                return;
-            }
-
+            if (!res.ok) { setError(data.error); return; }
             setNewChannelName('');
-
             fetchMyChannels();
             fetchAllChannels();
         } catch (err) {
-            setError('something went  wrong');
+            setError('something went wrong');
         }
     };
 
@@ -98,18 +78,11 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
                 method: 'POST',
                 headers: authHeaders
             });
-
             const data = await res.json();
-
-            if (!res.ok) {
-                alert(data.error);
-                return;
-            }
-
-
+            if (!res.ok) { alert(data.error); return; }
             fetchMyChannels();
         } catch (err) {
-            console.error(err)
+            console.error(err);
         }
     };
 
@@ -119,30 +92,39 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
             headers: authHeaders,
             body: JSON.stringify({ targetUserId })
         });
-
         const data = await res.json();
         if (!res.ok) { alert(data.error); return; }
-
-        //REFRESH DMs THEN OPEN IT
         await fetchMyDMs();
-
         const targetUser = allUsers.find(u => u.id === targetUserId);
         const name = targetUser ? targetUser.username : 'Direct Message';
         if (typeof onSelectDM === 'function') {
-            onSelectDM({ id: data.dmId });
-        } else if (typeof onSelectChannel === 'function') {
-            onSelectChannel({ id: data.dmId, name, is_dm: true });
+            onSelectDM({ id: data.dmId, other_username: name });
         }
     };
 
+    const isMember = (channelId) => myChannels.some(c => c.id === channelId);
 
-    const isMember = (channelId) => {
-        return myChannels.some(c => c.id === channelId);
+    // Unread badge component — reused for channels and DMs
+    const UnreadBadge = ({ count }) => {
+        if (!count || count === 0) return null;
+        return (
+            <span style={{
+                backgroundColor: '#ef4444',
+                color: 'white',
+                borderRadius: '50%',
+                minWidth: 18,
+                height: 18,
+                fontSize: 11,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 'bold',
+                padding: '0 4px'
+            }}>
+                {count > 99 ? '99+' : count}
+            </span>
+        );
     };
-
-    const hasDM = (userId) => {
-        return myDMs.some(d => d.other_user_id === userId);
-    }
 
     return (
         <div style={{
@@ -184,12 +166,8 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
                     <button
                         onClick={() => setView('my')}
                         style={{
-                            flex: 1,
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            border: 'none',
-                            cursor: 'pointer',
-                            fontSize: '13px',
+                            flex: 1, padding: '6px 12px', borderRadius: '6px',
+                            border: 'none', cursor: 'pointer', fontSize: '13px',
                             backgroundColor: view === 'my' ? 'var(--bg)' : 'transparent',
                             color: view === 'my' ? 'var(--text-h)' : 'var(--text)',
                             fontWeight: view === 'my' ? '600' : 'normal',
@@ -202,17 +180,12 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
                     <button
                         onClick={() => setView('browse')}
                         style={{
-                            flex: 1,
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            border: 'none',
-                            cursor: 'pointer',
-                            fontSize: '13px',
+                            flex: 1, padding: '6px 12px', borderRadius: '6px',
+                            border: 'none', cursor: 'pointer', fontSize: '13px',
                             backgroundColor: view === 'browse' ? 'var(--bg)' : 'transparent',
                             color: view === 'browse' ? 'var(--text-h)' : 'var(--text)',
                             fontWeight: view === 'browse' ? '600' : 'normal',
                             boxShadow: view === 'browse' ? 'var(--shadow)' : 'none',
-
                             transition: 'all 0.2s ease'
                         }}
                     >
@@ -220,11 +193,12 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
                     </button>
                 </div>
 
-                {/* Channel Lists */}
+                {/* My Channels List */}
                 {view === 'my' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         {myChannels.map(channel => {
                             const isSelected = selectedChannelId === channel.id;
+                            const unread = unreadCounts[channel.id] || 0;
                             return (
                                 <div
                                     key={channel.id}
@@ -240,27 +214,31 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'space-between',
-                                        fontWeight: isSelected ? '600' : 'normal',
+                                        fontWeight: isSelected ? '600' : unread > 0 ? '600' : 'normal',
                                         transition: 'all 0.15s ease'
                                     }}
                                 >
                                     <span># {channel.name}</span>
-                                    {channel.role === 'admin' && (
-                                        <span style={{
-                                            fontSize: '10px',
-                                            padding: '2px 6px',
-                                            backgroundColor: 'var(--border)',
-                                            color: 'var(--text)',
-                                            borderRadius: '12px'
-                                        }}>
-                                            admin
-                                        </span>
-                                    )}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        {/* Unread badge */}
+                                        <UnreadBadge count={unread} />
+                                        {channel.role === 'admin' && (
+                                            <span style={{
+                                                fontSize: '10px',
+                                                padding: '2px 6px',
+                                                backgroundColor: 'var(--border)',
+                                                color: 'var(--text)',
+                                                borderRadius: '12px'
+                                            }}>
+                                                admin
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             );
                         })}
 
-                        {/* Create Channel Input */}
+                        {/* Create Channel */}
                         <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <input
                                 placeholder="New Channel Name"
@@ -268,28 +246,17 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
                                 onChange={e => setNewChannelName(e.target.value)}
                                 onKeyDown={e => e.key === 'Enter' && createChannel()}
                                 style={{
-                                    width: '100%',
-                                    padding: '8px 12px',
-                                    borderRadius: '6px',
-                                    border: '1px solid var(--border)',
-                                    backgroundColor: 'var(--bg)',
-                                    color: 'var(--text-h)',
-                                    fontSize: '14px',
-                                    boxSizing: 'border-box'
+                                    width: '100%', padding: '8px 12px', borderRadius: '6px',
+                                    border: '1px solid var(--border)', backgroundColor: 'var(--bg)',
+                                    color: 'var(--text-h)', fontSize: '14px', boxSizing: 'border-box'
                                 }}
                             />
                             <button
                                 onClick={createChannel}
                                 style={{
-                                    width: '100%',
-                                    padding: '8px 12px',
-                                    borderRadius: '6px',
-                                    border: 'none',
-                                    backgroundColor: 'var(--accent)',
-                                    color: '#fff',
-                                    fontSize: '14px',
-                                    fontWeight: '600',
-                                    cursor: 'pointer',
+                                    width: '100%', padding: '8px 12px', borderRadius: '6px',
+                                    border: 'none', backgroundColor: 'var(--accent)', color: '#fff',
+                                    fontSize: '14px', fontWeight: '600', cursor: 'pointer',
                                     transition: 'background-color 0.2s'
                                 }}
                             >
@@ -300,6 +267,7 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
                     </div>
                 )}
 
+                {/* Browse Channels */}
                 {view === 'browse' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {allChannels.map(channel => {
@@ -310,11 +278,8 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
                                     style={{
                                         padding: '10px 12px',
                                         border: '1px solid var(--border)',
-                                        borderRadius: '8px',
-                                        fontSize: '14px',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: '6px'
+                                        borderRadius: '8px', fontSize: '14px',
+                                        display: 'flex', flexDirection: 'column', gap: '6px'
                                     }}
                                 >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -324,29 +289,15 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
                                         </span>
                                     </div>
                                     {joined ? (
-                                        <span style={{
-                                            fontSize: '12px',
-                                            color: '#10b981',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            fontWeight: '500'
-                                        }}>
-                                            ✓ Joined
-                                        </span>
+                                        <span style={{ fontSize: '12px', color: '#10b981', fontWeight: '500' }}>✓ Joined</span>
                                     ) : (
                                         <button
                                             onClick={() => joinChannel(channel.id)}
                                             style={{
-                                                padding: '4px 8px',
-                                                borderRadius: '4px',
-                                                border: '1px solid var(--accent)',
-                                                backgroundColor: 'transparent',
-                                                color: 'var(--accent)',
-                                                fontSize: '12px',
-                                                fontWeight: '600',
-                                                cursor: 'pointer',
-                                                alignSelf: 'flex-start'
+                                                padding: '4px 8px', borderRadius: '4px',
+                                                border: '1px solid var(--accent)', backgroundColor: 'transparent',
+                                                color: 'var(--accent)', fontSize: '12px',
+                                                fontWeight: '600', cursor: 'pointer', alignSelf: 'flex-start'
                                             }}
                                         >
                                             Join Channel
@@ -375,6 +326,7 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     {myDMs.map(dm => {
                         const isSelected = selectedChannelId === dm.id;
+                        const unread = unreadCounts[dm.id] || 0;
                         return (
                             <div
                                 key={dm.id}
@@ -387,18 +339,24 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
                                     fontSize: '14px',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '8px'
+                                    justifyContent: 'space-between',
+                                    fontWeight: unread > 0 ? '600' : 'normal',
+                                    transition: 'all 0.15s ease'
                                 }}
                             >
-                                {/* Online dot */}
-                                <span style={{
-                                    width: 8, height: 8,
-                                    borderRadius: '50%',
-                                    backgroundColor: onlineUsers[dm.other_user_id] ? '#22c55e' : '#6b7280',
-                                    display: 'inline-block',
-                                    flexShrink: 0
-                                }} />
-                                @ {dm.other_username}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    {/* Online dot */}
+                                    <span style={{
+                                        width: 8, height: 8,
+                                        borderRadius: '50%',
+                                        backgroundColor: onlineUsers[dm.other_user_id] ? '#22c55e' : '#6b7280',
+                                        display: 'inline-block',
+                                        flexShrink: 0
+                                    }} />
+                                    @ {dm.other_username}
+                                </div>
+                                {/* Unread badge */}
+                                <UnreadBadge count={unread} />
                             </div>
                         );
                     })}
@@ -409,26 +367,19 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
                             onChange={(e) => {
                                 if (e.target.value) {
                                     startDM(parseInt(e.target.value));
-                                    e.target.value = ''; // Reset selector
+                                    e.target.value = '';
                                 }
                             }}
                             style={{
-                                width: '100%',
-                                padding: '8px 12px',
-                                borderRadius: '6px',
-                                border: '1px solid var(--border)',
-                                backgroundColor: 'var(--bg)',
-                                color: 'var(--text)',
-                                fontSize: '14px',
-                                cursor: 'pointer',
-                                outline: 'none'
+                                width: '100%', padding: '8px 12px', borderRadius: '6px',
+                                border: '1px solid var(--border)', backgroundColor: 'var(--bg)',
+                                color: 'var(--text)', fontSize: '14px',
+                                cursor: 'pointer', outline: 'none'
                             }}
                         >
                             <option value="">+ Start Direct Message</option>
                             {allUsers.map(u => (
-                                <option key={u.id} value={u.id}>
-                                    {u.username}
-                                </option>
+                                <option key={u.id} value={u.id}>{u.username}</option>
                             ))}
                         </select>
                     </div>

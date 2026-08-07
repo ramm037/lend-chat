@@ -19,10 +19,10 @@ router.get('/unread', async (req, res) => {
               cm.channel_id,
               COUNT(m.id) as unread_count
               FROM channel_members cm
-              LEFT JOIN messages m ON m.channel_iid = cm.channel_id
+              LEFT JOIN messages m ON m.channel_id = cm.channel_id
               LEFT JOIN channel_last_read clr
                 ON clr.channel_id = cm.channel_id
-                AND clr.used_id = cm.user_id
+                AND clr.user_id = cm.user_id
               WHERE cm.user_id = ?
                 AND (clr.last_read_at IS NULL OR m.created_at > clr.last_read_at)
                 AND m.sender_id != ?
@@ -60,7 +60,7 @@ router.post('/mark', async (req, res) => {
             `INSERT INTO channel_last_read (user_id, channel_id, last_read_at)
             VALUES (?, ?, NOW())
             ON DUPLICATE KEY UPDATE last_read_at = NOW()`,
-            [iserId, channelId]
+            [userId, channelId]
         );
 
         res.json({ message: 'Marked as read', channelId });

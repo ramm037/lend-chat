@@ -51,7 +51,7 @@ app.use('/api/messages', messageRoutes);
 
 app.use('/api/dms', dmRoutes);
 
-app.use('/api/routes', readsRoutes);
+app.use('/api/reads', readsRoutes);
 
 //This fires every time a browser tab opens a socket connection
 //socket auth middle ware
@@ -280,7 +280,7 @@ io.on('connection', async (socket) => {
       //update last_read timestamp
       await db.query(
         `INSERT INTO channel_last_read (user_id, channel_id, last_read_at)
-        VALUES (?, ?. NOW())
+        VALUES (?, ?, NOW())
         ON DUPLICATE KEY UPDATE last_read_at = NOW()`,
         [userId, channelId]
       );
