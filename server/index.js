@@ -13,6 +13,7 @@ const dmRoutes = require('./routes/dm')
 const redis = require('./redis');
 const presenceRoutes = require('./routes/presence');
 const readsRoutes = require('./routes/reads');
+const uploadRoutes = require('./routes/upload');
 
 
 const app = express();
@@ -52,6 +53,8 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/dms', dmRoutes);
 
 app.use('/api/reads', readsRoutes);
+
+app.use('/api/upload', uploadRoutes);
 
 //This fires every time a browser tab opens a socket connection
 //socket auth middle ware
