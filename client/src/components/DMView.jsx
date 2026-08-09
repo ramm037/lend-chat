@@ -41,11 +41,16 @@ function DMView({ dm, accessToken, socket }) {
     if (!socket || !dm) return;
 
     const handleNewDM = (message) => {
-      // Fix — Number comparison to handle string/number mismatch
-      if (Number(message.dm_id) === Number(dm.id)) {
+    console.log('new_dm received:', message);
+    console.log('dm.id:', dm?.id);
+    console.log('match dm_id:', Number(message.dm_id) === Number(dm?.id));
+    console.log('match channel_id:', Number(message.channel_id) === Number(dm?.id));
+    
+    if (Number(message.dm_id) === Number(dm?.id) ||
+        Number(message.channel_id) === Number(dm?.id)) {
         setMessages(prev => [...prev, message]);
-      }
-    };
+    }
+};
 
     const handleTypingStart = ({ username, channelId }) => {
       if (Number(channelId) === Number(dm.id)) {
@@ -139,7 +144,17 @@ function DMView({ dm, accessToken, socket }) {
                 {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
-            <span style={{ fontSize: 14 }}>{msg.content}</span>
+            {msg.content && (
+              <span style={{ fontSize: 14 }}>{msg.content}</span>
+            )}
+            {msg.image_url && (
+              <img
+                src={msg.image_url}
+                alt="shared image"
+                style={{ maxWidth: 300, maxHeight: 300, borderRadius: 8, cursor: 'pointer', objectFit: 'cover' }}
+                onClick={() => window.open(msg.image_url, '_blank')}
+              />
+            )}
           </div>
         ))}
 

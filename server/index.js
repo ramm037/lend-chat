@@ -131,12 +131,27 @@ io.on('connection', async (socket) => {
 
   // Broadcast image message to channel room
   socket.on('send_channel_image', ({ channelId, newMessage }) => {
-    io.to(`channel_${channelId}`).emit('new_message', newMessage);
+    console.log('send_channel_image received:', channelId);
+
+    const messageWithChannelId = {
+      ...newMessage,
+      channel_id: channelId
+    };
+
+    io.to(`channel_${channelId}`).emit('new_message', messageWithChannelId);
   });
 
   // Broadcast image message to DM room
   socket.on('send_dm_image', ({ dmId, newMessage }) => {
-    io.to(`dm_${dmId}`).emit('new_dm', newMessage);
+    console.log('send_dm_image received:', dmId);
+
+    // Add dm_id to newMessage so DMView filter works
+    const messageWithDmId = {
+      ...newMessage,
+      dm_id: dmId
+    };
+
+    io.to(`dm_${dmId}`).emit('new_dm', messageWithDmId);
   });
 
   //JOIN CHANNEL MID SESSION-------------------------------------

@@ -5,6 +5,7 @@ function ImageUpload({ accessToken, channelId, dmId, socket, isDM}) {
     const fileInputRef = useRef(null);
 
     const handleFileChange = async (e) => {
+        console.log('channelId:', channelId, 'dmId:', dmId, 'isDM:', isDM);
         const file = e.target.files[0];
         if(!file) return;
 
