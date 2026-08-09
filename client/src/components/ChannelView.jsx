@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import ImageUpload from "./ImageUpload";
 
 function ChannelView({ channel, accessToken, socket }) {
     const [messages, setMessages] = useState([]);
@@ -131,7 +132,7 @@ function ChannelView({ channel, accessToken, socket }) {
         // Stop typing when message sent
         socket.emit('typing_stop', { channelId: channel.id, isDM: false });
         clearTimeout(typingTimeoutRef.current);
-        
+
         setInput('');
     };
 
@@ -209,8 +210,26 @@ function ChannelView({ channel, accessToken, socket }) {
                                 })}
                             </span>
                         </div>
+                        {/* Text message */}
+                        {msg.content && (
+                            <span style={{ fontSize: 14 }}>{msg.content}</span>
+                        )}
+                        {/*Image message*/}
+                        {msg.image_url && (
+                            <img
+                                src={msg.image_url}
+                                alt="shared image"
+                                style={{
+                                    maxWidth: 300,
+                                    maxHeight: 300,
+                                    borderRadius: 8,
+                                    cursor: 'pointer',
+                                    objectFit: 'cover'
+                                }}
+                                onClick={() => window.open(msg.image_url, '_blank')}
+                            />
 
-                        <span style={{ fontSize: 14 }}>{msg.content}</span>
+                        )}
                     </div>
                 ))}
 
@@ -234,6 +253,12 @@ function ChannelView({ channel, accessToken, socket }) {
                 display: 'flex',
                 gap: 8
             }}>
+                <ImageUpload
+                    accessToken={accessToken}
+                    channelId={channel.id}
+                    socket={socket}
+                    isDM={false}
+                />
                 <input
                     value={input}
                     onChange={handleInputChange}

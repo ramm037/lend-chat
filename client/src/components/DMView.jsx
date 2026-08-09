@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import ImageUpload from './ImageUpload';
 
 function DMView({ dm, accessToken, socket }) {
   const [messages, setMessages] = useState([]);
@@ -162,6 +163,12 @@ function DMView({ dm, accessToken, socket }) {
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendDM())}
           placeholder={`Message @ ${dm.other_username}`}
           style={{ flex: 1, padding: '8px 12px', borderRadius: 4, border: '1px solid #ccc', fontSize: 14 }}
+        />
+        <ImageUpload
+          accessToken={accessToken}
+          dmId={dm.id}
+          socket={socket}
+          isDM={true}
         />
         <button
           onClick={sendDM}

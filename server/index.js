@@ -129,6 +129,16 @@ io.on('connection', async (socket) => {
     console.error('Connection error:', err);
   }
 
+  // Broadcast image message to channel room
+  socket.on('send_channel_image', ({ channelId, newMessage }) => {
+    io.to(`channel_${channelId}`).emit('new_message', newMessage);
+  });
+
+  // Broadcast image message to DM room
+  socket.on('send_dm_image', ({ dmId, newMessage }) => {
+    io.to(`dm_${dmId}`).emit('new_dm', newMessage);
+  });
+
   //JOIN CHANNEL MID SESSION-------------------------------------
   socket.on('join_channel', (channelId) => {
     socket.join(`channel_${channelId}`);
