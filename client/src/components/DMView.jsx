@@ -6,6 +6,9 @@ function DMView({ dm, accessToken, socket }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const typingTimeoutRef = useRef(null);
   const bottomRef = useRef(null);
 
@@ -17,11 +20,12 @@ function DMView({ dm, accessToken, socket }) {
       setLoading(true);
       try {
         const res = await fetch(
-          `http://localhost:5000/api/messages/${dm.id}`,
+          `http://localhost:5000/api/messages/${dm.id}?limit=50`,
           { headers: { Authorization: `Bearer ${accessToken}` } }
         );
         const data = await res.json();
         setMessages(data.messages || []);
+        setHasMore(data.hasMore || false);
       } catch (err) {
         console.error(err);
       } finally {
@@ -33,8 +37,36 @@ function DMView({ dm, accessToken, socket }) {
     return () => {
       setMessages([]);
       setTypingUsers([]);
+      setHasMore(false);
     };
   }, [dm]);
+
+  // Load older messages when user clicks "Load older messages"
+  const loadMoreMessages = async () => {
+    if (!dm || messages.length === 0 || loadingMore) return;
+
+    setLoadingMore(true);
+    const oldestId = messages[0].id;
+
+    try {
+      const res = await fetch(
+        `http://localhost:5000/api/messages/${dm.id}?before=${oldestId}&limit=50`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      const data = await res.json();
+
+      if (data.messages.length > 0) {
+        setMessages(prev => [...data.messages, ...prev]);
+        setHasMore(data.hasMore || false);
+      } else {
+        setHasMore(false);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   // Listen for incoming DMs + typing events
   useEffect(() => {
@@ -128,6 +160,28 @@ function DMView({ dm, accessToken, socket }) {
 
       {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+        {/* Load more button at top */}
+        {hasMore && (
+          <div style={{ textAlign: 'center', marginBottom: 8 }}>
+            <button
+              onClick={loadMoreMessages}
+              disabled={loadingMore}
+              style={{
+                padding: '6px 16px',
+                borderRadius: 4,
+                border: '1px solid #ccc',
+                backgroundColor: 'transparent',
+                cursor: loadingMore ? 'not-allowed' : 'pointer',
+                fontSize: 13,
+                color: '#666'
+              }}
+            >
+              {loadingMore ? 'Loading...' : 'Load older messages'}
+            </button>
+          </div>
+        )}
+
         {loading && <p style={{ color: '#aaa' }}>Loading...</p>}
 
         {!loading && messages.length === 0 && (

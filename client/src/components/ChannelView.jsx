@@ -9,11 +9,17 @@ function ChannelView({ channel, accessToken, socket }) {
     const [typingUsers, setTypingUsers] = useState([]);
     //typing users =  array of usernames currently typing
 
+    const [hasMore, setHasMore] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+
     const bottomRef = useRef(null);
+    const topRef = useRef(null);
     const typingTimeoutRef = useRef(null);
     //typingTimeoutRef = used to auto stop typing after 2 seconds
     //of no keystrokes , even if the user doesn't clear the inputs
 
+
+    //fetch latest messages on channel open
     useEffect(() => {
         if (!channel) return;
 
@@ -21,7 +27,7 @@ function ChannelView({ channel, accessToken, socket }) {
             setLoading(true);
             try {
                 const res = await fetch(
-                    `http://localhost:5000/api/messages/${channel.id}`,
+                    `http://localhost:5000/api/messages/${channel.id}?limit=50`,
                     {
                         headers: { Authorization: `Bearer ${accessToken}` }
                     }
@@ -29,6 +35,7 @@ function ChannelView({ channel, accessToken, socket }) {
 
                 const data = await res.json();
                 setMessages(data.messages || []);
+                setHasMore(data.hasMore || false);
             } catch (err) {
                 console.error(err);
             } finally {
@@ -54,6 +61,35 @@ function ChannelView({ channel, accessToken, socket }) {
             setTypingUsers([]);
         };
     }, [channel]);
+
+    //load older messages when user clicks "load More"
+    const loadMoreMessages = async () => {
+        if (!channel || messages.length === 0 || loadingMore) return;
+
+        setLoadingMore(true);
+        const oldestId = messages[0].id;
+
+        try {
+            const res = await fetch(
+                `http://localhost:5000/api/messages/${channel.id}?before=${oldestId}&limit=50`,
+                { headers: { Authorization: `Bearer ${accessToken}` } }
+            );
+
+            const data = await res.json();
+
+            if (data.messages.length > 0) {
+                //prepend older messages to the top
+                setMessages(prev => [...data.messages, ...prev]);
+                setHasMore(data.hasMore || false);
+            } else {
+                setHasMore(false);
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoadingMore(false);
+        }
+    };
 
     //message = typing listeners
     useEffect(() => {
@@ -94,7 +130,7 @@ function ChannelView({ channel, accessToken, socket }) {
         };
     }, [socket, channel]);
 
-
+     // Auto scroll to bottom only on first load and new messages
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
@@ -176,7 +212,7 @@ function ChannelView({ channel, accessToken, socket }) {
                 </span>
             </div>
 
-
+            {/* message area*/}
             <div style={{
                 flex: 1,
                 overflowY: 'auto',
@@ -185,6 +221,26 @@ function ChannelView({ channel, accessToken, socket }) {
                 flexDirection: 'column',
                 gap: 8,
             }}>
+                {/* Load more button at top */}
+                {hasMore && (
+                    <div style={{ textAlign: 'center', marginBottom: 8}}>
+                        <button
+                            onClick={loadMoreMessages}
+                            disabled={loadingMore}
+                            style={{
+                                padding: '6px 16px',
+                                borderRadius: 4,
+                                border: '1px solid #ccc',
+                                backgroundColor: 'transparent',
+                                cursor: loadingMore ? 'not-allowed' : 'pointer',
+                                fontSize: 13,
+                                color: '#666'
+                            }}
+                        >{loadingMore ? 'Loading...' : 'Load more'}</button>
+                    </div>
+                )}
+
+
                 {loading && <p styles={{ color: '#aaa' }}>Loading Messages...</p>}
 
                 {!loading && messages.length === 0 && (

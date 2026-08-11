@@ -131,6 +131,11 @@ io.on('connection', async (socket) => {
 
   // Broadcast image message to channel room
   socket.on('send_channel_image', ({ channelId, newMessage }) => {
+
+    //invalidate cache when image sent 
+    redis.del(`messages:${channelId}:latest`);
+
+    
     console.log('send_channel_image received:', channelId);
 
     const messageWithChannelId = {
@@ -192,6 +197,10 @@ io.on('connection', async (socket) => {
         username,
         created_at: new Date().toISOString()
       };
+
+      //inavlidate redis cache for this channel-
+      //next fetch will get fresh data from db includig this message
+      await redis.del(`messages:${channelId}:latest`);
 
       io.to(`channel_${channelId}`).emit('new_message', newMessage);
     } catch (err) {
