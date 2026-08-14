@@ -5,6 +5,7 @@ import ChannelView from './ChannelView';
 import DMView from './DMView';
 import usePresence from '../hooks/usePresence';
 import useUnreadCounts from '../hooks/useUnreadCounts';
+import SearchBar from './SearchBar';
 
 function Chat({ accessToken, user, onLogout }) {
   const [connected, setConnected] = useState(false);
@@ -125,6 +126,13 @@ function Chat({ accessToken, user, onLogout }) {
           alignItems: 'center'
         }}>
           <span>{user.username} — {connected ? '🟢 Online' : '🔴 Connecting...'}</span>
+
+          <SearchBar 
+            accessToken={accessToken}
+            onSelectChannel={handleSelectChannel}
+            onSelectDM={handleSelectDM}
+          />
+
           <button onClick={onLogout}>Logout</button>
         </div>
 
