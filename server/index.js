@@ -17,6 +17,7 @@ const uploadRoutes = require('./routes/upload');
 const searchRoutes = require('./routes/search');
 const notificationRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
+const { type } = require('os');
 
 
 const app = express();
@@ -96,6 +97,10 @@ io.on('connection', async (socket) => {
   const userId = socket.user.id;
   const username = socket.user.username;
 
+  // Each user joins their own personal room for targeted notifications
+  socket.join(`user_${userId}`);
+  console.log(`${username} joined personal room user_${userId}`);
+
   try {
     //JOIN GROUP CHANNELS------------------------------
     const [channels] = await db.query(
@@ -144,7 +149,7 @@ io.on('connection', async (socket) => {
     //invalidate cache when image sent 
     redis.del(`messages:${channelId}:latest`);
 
-    
+
     console.log('send_channel_image received:', channelId);
 
     const messageWithChannelId = {
@@ -212,6 +217,28 @@ io.on('connection', async (socket) => {
       await redis.del(`messages:${channelId}:latest`);
 
       io.to(`channel_${channelId}`).emit('new_message', newMessage);
+
+      //create notifications for all OTHER members in the channel
+      const [members] = await db.query(
+        `SELECT user_id FROM channel_members WHERE channel_id = ? AND user_id != ?`,
+        [channelId, userId]
+      );
+
+      // Emit real time notification for each member
+      for (const member of members) {
+        await db.query(
+          `INSERT INTO notifications (user_id, type, content, channel_id) 
+         VALUES (?, 'message', ?, ?)`,
+          [member.user_id, `${username}: ${content.trim().substring(0, 50)}`, channelId]
+        );
+
+        //emit real-time notification to that user if online
+        io.to(`user_${member.user_id}`).emit('new_notification', {
+          type: 'message',
+          content: `${username}: ${content.trim().substring(0, 50)}`,
+          channelId
+        });
+      }
     } catch (err) {
       console.error(err);
       socket.emit('error', { message: 'Failed to send message' });
@@ -288,6 +315,20 @@ io.on('connection', async (socket) => {
       channelId,
       isDM
     });
+  });
+
+  socket.on('admin_delete_message', ({ channelId, messageId }) => {
+    // Tell all the clients in this channel to remove the message from UI
+    io.to(`channel_${channelId}`).emit('message_deleted', {messageId});
+  });
+
+  socket.on('admin_kick_user', ({ channelId, targetUserId }) => {
+    //Tell the kicked user to leave the channel UI
+    io.to(`user_${targetUserId}`).emit('kicked_from_channel', { channelId })
+  });
+
+  socket.on('admin_delete_channel', ({ channelId }) => {
+    io.to(`channel_${channelId}`).emit('channel_deleted', { channelId })
   });
 
   //---DISCONNECT - SET OFFLINE----------------------------
