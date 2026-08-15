@@ -15,6 +15,8 @@ const presenceRoutes = require('./routes/presence');
 const readsRoutes = require('./routes/reads');
 const uploadRoutes = require('./routes/upload');
 const searchRoutes = require('./routes/search');
+const notificationRoutes = require('./routes/notifications');
+const adminRoutes = require('./routes/admin');
 
 
 const app = express();
@@ -58,6 +60,10 @@ app.use('/api/reads', readsRoutes);
 app.use('/api/upload', uploadRoutes);
 
 app.use('/api/search', searchRoutes);
+
+app.use('/api/notifications', notificationRoutes);
+
+app.use('/api/admin', adminRoutes);
 
 //This fires every time a browser tab opens a socket connection
 //socket auth middle ware
