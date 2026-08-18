@@ -137,10 +137,8 @@ function Chat({ accessToken, user, onLogout }) {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <NotificationBell accessToken={accessToken} socket={socket} />
-    
+            <button onClick={onLogout}>Logout</button>
           </div>
-
-          <button onClick={onLogout}>Logout</button>
         </div>
 
         {/* Show ChannelView or DMView depending on what's selected */}

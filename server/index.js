@@ -97,10 +97,6 @@ io.on('connection', async (socket) => {
   const userId = socket.user.id;
   const username = socket.user.username;
 
-  // Each user joins their own personal room for targeted notifications
-  socket.join(`user_${userId}`);
-  console.log(`${username} joined personal room user_${userId}`);
-
   try {
     //JOIN GROUP CHANNELS------------------------------
     const [channels] = await db.query(
@@ -123,6 +119,11 @@ io.on('connection', async (socket) => {
     dms.forEach(row => socket.join(`dm_${row.channel_id}`));
 
     console.log(`${username} joined ${channels.length} channels, ${dms.length} DMs`);
+
+
+    // Each user joins their own personal room for targeted notifications
+    socket.join(`user_${userId}`);
+    console.log(`${username} joined personal room user_${userId}`);
 
     //REDIS PRESENCE - SET ONLINE -----------------------------
     //STORE USER AS ONLINE IN REDIS
@@ -220,7 +221,7 @@ io.on('connection', async (socket) => {
 
       //create notifications for all OTHER members in the channel
       const [members] = await db.query(
-        `SELECT user_id FROM channel_members WHERE channel_id = ? AND user_id != ?`,
+        'SELECT user_id FROM channel_members WHERE channel_id = ? AND user_id != ?',
         [channelId, userId]
       );
 
@@ -319,7 +320,7 @@ io.on('connection', async (socket) => {
 
   socket.on('admin_delete_message', ({ channelId, messageId }) => {
     // Tell all the clients in this channel to remove the message from UI
-    io.to(`channel_${channelId}`).emit('message_deleted', {messageId});
+    io.to(`channel_${channelId}`).emit('message_deleted', { messageId });
   });
 
   socket.on('admin_kick_user', ({ channelId, targetUserId }) => {
