@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-function AdminPanel({ channel, members, accessToken, socket, onChannelDeleted }) {
+function AdminPanel({ channel, members, accessToken, socket, onChannelDeleted, user }) {
     const [showPanel, setShowPanel] = useState(false);
 
     const authHeaders = {
@@ -67,7 +67,7 @@ function AdminPanel({ channel, members, accessToken, socket, onChannelDeleted })
     };
 
     // Only show for admins
-    const isAdmin = members.find(m => m.role === 'admin' && m.id === channel.created_by);
+    const isAdmin = members.find(m => m.id === user?.id && m.role === 'admin');
     if (!isAdmin) return null;
 
     return (

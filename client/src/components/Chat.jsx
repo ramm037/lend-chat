@@ -6,6 +6,7 @@ import DMView from './DMView';
 import usePresence from '../hooks/usePresence';
 import useUnreadCounts from '../hooks/useUnreadCounts';
 import SearchBar from './SearchBar';
+import NotificationBell from './NotificationBell';
 
 function Chat({ accessToken, user, onLogout }) {
   const [connected, setConnected] = useState(false);
@@ -15,9 +16,9 @@ function Chat({ accessToken, user, onLogout }) {
 
   //presencehoook = returns {userId: isOnline} map
   const onlineUsers = usePresence(accessToken, socket);
-  const { unreadCounts, incrementUnread, clearUnread} = useUnreadCounts(accessToken, socket);
+  const { unreadCounts, incrementUnread, clearUnread } = useUnreadCounts(accessToken, socket);
 
-  
+
   useEffect(() => {
     const newSocket = io('http://localhost:5000', {
       auth: { token: accessToken }
@@ -34,7 +35,7 @@ function Chat({ accessToken, user, onLogout }) {
   useEffect(() => {
     if (!socket) return;
 
-    const handleNewMessage= (message) => {
+    const handleNewMessage = (message) => {
       //Only increment is the channel is NOT currently selected
       if (Number(message.channel_id) !== Number(selectedChannel?.id)) {
         incrementUnread(message.channel_id);
@@ -63,7 +64,7 @@ function Chat({ accessToken, user, onLogout }) {
       socket.emit('join_channel', channel.id);
 
       //mark channel as read when opened
-      socket.emit('mark_read', {channelId: channel.id });
+      socket.emit('mark_read', { channelId: channel.id });
     }
 
     //clear unread count for this channel
@@ -104,8 +105,8 @@ function Chat({ accessToken, user, onLogout }) {
   const selectedId = selectedChannel
     ? `c_${selectedChannel.id}`
     : selectedDM
-    ? `d_${selectedDM.id}`
-    : null;
+      ? `d_${selectedDM.id}`
+      : null;
 
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
@@ -123,15 +124,21 @@ function Chat({ accessToken, user, onLogout }) {
           borderBottom: '1px solid #ccc',
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center'
+          alignItems: 'center',
+          gap: 16
         }}>
-          <span>{user.username} — {connected ? '🟢 Online' : '🔴 Connecting...'}</span>
+          <span style={{ whiteSpace: 'nowrap' }}>{user.username} — {connected ? '🟢 Online' : '🔴 Connecting...'}</span>
 
-          <SearchBar 
+          <SearchBar
             accessToken={accessToken}
             onSelectChannel={handleSelectChannel}
             onSelectDM={handleSelectDM}
           />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <NotificationBell accessToken={accessToken} socket={socket} />
+    
+          </div>
 
           <button onClick={onLogout}>Logout</button>
         </div>
@@ -139,7 +146,7 @@ function Chat({ accessToken, user, onLogout }) {
         {/* Show ChannelView or DMView depending on what's selected */}
         {selectedDM
           ? <DMView dm={selectedDM} accessToken={accessToken} socket={socket} />
-          : <ChannelView channel={selectedChannel} accessToken={accessToken} socket={socket} />
+          : <ChannelView channel={selectedChannel} accessToken={accessToken} socket={socket} user={user} />
         }
       </div>
     </div>

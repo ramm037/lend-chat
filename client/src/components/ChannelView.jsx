@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import ImageUpload from "./ImageUpload";
+import AdminPanel from "./AdminPanel";
 
-function ChannelView({ channel, accessToken, socket }) {
+function ChannelView({ channel, accessToken, socket, user }) {
     const [messages, setMessages] = useState([]);
     const [members, setMembers] = useState([]);
     const [input, setInput] = useState('');
@@ -17,6 +18,8 @@ function ChannelView({ channel, accessToken, socket }) {
     const typingTimeoutRef = useRef(null);
     //typingTimeoutRef = used to auto stop typing after 2 seconds
     //of no keystrokes , even if the user doesn't clear the inputs
+
+    const [userRole, setUserRole] = useState('member');
 
 
     //fetch latest messages on channel open
@@ -50,7 +53,12 @@ function ChannelView({ channel, accessToken, socket }) {
             );
             const data = await res.json();
             setMembers(data.members || []);
+
+            // Find current user's role
+            const currentUser = data.members.find(m => m.id === user?.id);
+            if (currentUser) setUserRole(currentUser.role)
         };
+
 
         fetchMessages();
         fetchDetails();
@@ -119,6 +127,19 @@ function ChannelView({ channel, accessToken, socket }) {
             }
         };
 
+        // In socket useEffect — add message_deleted and kicked listeners
+        socket.on('message_deleted', ({ messageId }) => {
+            setMessages(prev => prev.filter(m => m.id !== messageId));
+        });
+
+        socket.on('kicked_from_channel', ({ channelId: kickedChannelId }) => {
+            if (Number(kickedChannelId) === Number(channel?.id)) {
+                //clear channel view - user was kciked
+
+                alert("You have been removed from this channel");
+            }
+        });
+
         socket.on('new_message', handleNewMessage);
         socket.on('user_typing', handleTypingStart);
         socket.on('user_stopped_typing', handleTypingStop);
@@ -130,7 +151,7 @@ function ChannelView({ channel, accessToken, socket }) {
         };
     }, [socket, channel]);
 
-     // Auto scroll to bottom only on first load and new messages
+    // Auto scroll to bottom only on first load and new messages
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
@@ -207,9 +228,22 @@ function ChannelView({ channel, accessToken, socket }) {
                 alignItems: 'center'
             }}>
                 <h3 style={{ margin: 0 }}> #{channel.name}</h3>
-                <span style={{ color: '#888', fontSize: 13 }}>
-                    {members.length} members
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ color: '#888', fontSize: 13 }}>{members.length} members</span>
+                    {userRole === 'admin' && (
+                        <AdminPanel
+                            channel={channel}
+                            members={members}
+                            accessToken={accessToken}
+                            socket={socket}
+                            user={user}
+                            onChannelDeleted={(id) => {
+                                // Handle channel deletion — clear view
+                                alert('Channel deleted');
+                            }}
+                        />
+                    )}
+                </div>
             </div>
 
             {/* message area*/}
@@ -223,7 +257,7 @@ function ChannelView({ channel, accessToken, socket }) {
             }}>
                 {/* Load more button at top */}
                 {hasMore && (
-                    <div style={{ textAlign: 'center', marginBottom: 8}}>
+                    <div style={{ textAlign: 'center', marginBottom: 8 }}>
                         <button
                             onClick={loadMoreMessages}
                             disabled={loadingMore}
@@ -253,8 +287,21 @@ function ChannelView({ channel, accessToken, socket }) {
                     <div key={msg.id} style={{
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: 2
-                    }}>
+                        gap: 2,
+                        position: 'relative'
+                    }}
+
+                        onMouseEnter={e => {
+                            const btn = e.currentTarget.querySelector('.delete-btn');
+                            if (btn) btn.style.display = 'block';
+                        }}
+
+                        onMouseLeave={e => {
+                            const btn = e.currentTarget.querySelector('.delete-btn');
+                            if (btn) btn.style.display = 'none';
+                        }}
+                    >
+
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                             <span style={{ fontWeight: 'bold', fontSize: 14 }}>
                                 {msg.username}
@@ -265,6 +312,38 @@ function ChannelView({ channel, accessToken, socket }) {
                                     minute: '2-digit'
                                 })}
                             </span>
+                            {/* Admin delete button — only shows on hover */}
+                            {userRole === 'admin' && (
+                                <button
+                                    className="delete-btn"
+                                    onClick={() => {
+                                        if (window.confirm('Delete this message?')) {
+                                            fetch(
+                                                `http://localhost:5000/api/admin/channels/${channel.id}/messages/${msg.id}`,
+                                                { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } }
+                                            ).then(() => {
+                                                socket.emit('admin_delete_message', {
+                                                    channelId: channel.id,
+                                                    messageId: msg.id
+                                                });
+                                            });
+                                        }
+                                    }}
+                                    style={{
+                                        display: 'none',
+                                        marginLeft: 8,
+                                        padding: '1px 6px',
+                                        borderRadius: 4,
+                                        border: 'none',
+                                        backgroundColor: '#ef4444',
+                                        color: 'white',
+                                        fontSize: 10,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    delete
+                                </button>
+                            )}
                         </div>
                         {/* Text message */}
                         {msg.content && (

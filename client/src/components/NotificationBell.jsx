@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 
 function NotificationBell({ accessToken, socket }) {
     const [notifications, setNotifications] = useState([]);
-    const [showDropdown, setDropdown] = useState(false);
+    const [showDropdown, setShowDropdown] = useState(false);
 
     const authHeaders = { Authorization: `Bearer ${accessToken}` };
 
@@ -15,7 +15,7 @@ function NotificationBell({ accessToken, socket }) {
                     headers: authHeaders
                 });
                 const data = await res.json();
-                setNotification(data.notifications || []);
+                setNotifications(data.notifications || []);
             } catch (err) {
                 console.error('Error fetching notifications:', err);
             }
@@ -49,7 +49,7 @@ function NotificationBell({ accessToken, socket }) {
         };
     }, [socket]);
 
-    const unreadCounts = notifications.filter(n => !n.is_read).length;
+    const unreadCount = notifications.filter(n => !n.is_read).length;
 
     const markAllRead = async () => {
         try {
