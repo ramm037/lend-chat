@@ -152,7 +152,7 @@ function NotificationBell({ accessToken, socket }) {
           ) : (
             notifications.map((notif, index) => (
               <div
-                key={notif.id || index}
+                key={notif.id || `notif-${index}-${notif.created_at}`}
                 style={{
                   padding: '10px 16px',
                   borderBottom: '1px solid #f0f0f0',
@@ -173,17 +173,19 @@ function NotificationBell({ accessToken, socket }) {
                     })}
                   </span>
                 </div>
-                {notif.id && (
-                  <button
-                    onClick={() => deleteNotification(notif.id)}
-                    style={{
-                      border: 'none', background: 'none',
-                      cursor: 'pointer', color: '#aaa', fontSize: 14
-                    }}
-                  >
-                    ×
-                  </button>
-                )}
+                {/* Always show cross — handle both DB and socket notifications */}
+                <button
+                  onClick={() => {
+                    if (notif.id) {
+                      deleteNotification(notif.id);
+                    } else {
+                      setNotifications(prev => prev.filter((_, i) => i !== index));
+                    }
+                  }}
+                  style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#aaa', fontSize: 16 }}
+                >
+                  x
+                </button>
               </div>
             ))
           )}

@@ -132,11 +132,21 @@ function ChannelView({ channel, accessToken, socket, user }) {
             setMessages(prev => prev.filter(m => m.id !== messageId));
         });
 
-        socket.on('kicked_from_channel', ({ channelId: kickedChannelId }) => {
+        socket.on('kicked_from_channel', ({ channelId: kickedChannelId, targetUserId }) => {
             if (Number(kickedChannelId) === Number(channel?.id)) {
-                //clear channel view - user was kciked
 
+                setMembers([]);
+                setMessages([]);
+                //clear channel view - user was kciked
+                setMembers(prev => prev.filter(m => m.id !== targetUserId))
                 alert("You have been removed from this channel");
+            }
+        });
+
+        socket.on('member_kicked', ({ channelId: kickedChannel, targetUserId }) => {
+            if (Number(kickedChannel) === Number(channel?.id)) {
+                // Remove from members state immediately
+                setMembers(prev => prev.filter(m => m.id !== targetUserId));
             }
         });
 
@@ -148,6 +158,9 @@ function ChannelView({ channel, accessToken, socket, user }) {
             socket.off('new_message', handleNewMessage);
             socket.off('user_typing', handleTypingStart);
             socket.off('user_stopped_typing', handleTypingStop);
+            socket.off('message_deleted');
+            socket.off('kicked_from_channel');
+            socket.off('member_kicked');
         };
     }, [socket, channel]);
 

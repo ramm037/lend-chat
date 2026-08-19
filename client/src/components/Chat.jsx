@@ -13,6 +13,7 @@ function Chat({ accessToken, user, onLogout }) {
   const [socket, setSocket] = useState(null);
   const [selectedChannel, setSelectedChannel] = useState(null);
   const [selectedDM, setSelectedDM] = useState(null);
+  const [shouldRefreshChannels, setShouldRefreshChannels] = useState(0);
 
   //presencehoook = returns {userId: isOnline} map
   const onlineUsers = usePresence(accessToken, socket);
@@ -50,6 +51,16 @@ function Chat({ accessToken, user, onLogout }) {
 
     socket.on('new_message', handleNewMessage);
     socket.on('new_dm', handleNewDM);
+
+    socket.on('kicked_from_channel', ({ channelId }) => {
+      //if currently viewing that channel - clear it
+      if(selectedChannel && Number(selectedChannel.id) === Number(channelId)) {
+        selectedChannel(null);
+      }
+      //refresh sidebar channel list
+      //emit custom event to trigger sidebar refetch
+      setShouldRefreshChannels(prev => prev + 1);
+    })
 
     return () => {
       socket.off('new_message', handleNewMessage);
@@ -117,6 +128,7 @@ function Chat({ accessToken, user, onLogout }) {
         selectedId={selectedId}
         onlineUsers={onlineUsers}
         unreadCounts={unreadCounts}
+        refreshTrigger={shouldRefreshChannels}
       />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{

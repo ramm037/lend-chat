@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, onlineUsers = {}, unreadCounts = {} }) {
+function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, onlineUsers = {}, unreadCounts = {}, refreshTrigger = 0 }) {
     const [myChannels, setMyChannels] = useState([]);
     const [allChannels, setAllChannels] = useState([]);
     const [myDMs, setMyDMs] = useState([]);
@@ -51,7 +51,7 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
         fetchMyChannels();
         fetchMyDMs();
         fetchAllUsers();
-    }, []);
+    }, [refreshTrigger]);
 
     const createChannel = async () => {
         if (!newChannelName.trim()) return;
