@@ -38,11 +38,15 @@ function AdminPanel({ channel, members, accessToken, socket, onChannelDeleted, u
             );
 
             if (res.ok) {
+                //broadcast message deletion to all the members
                 socket.emit('admin_kick_user', {
                     channelId: channel.id,
                     targetUserId
                 });
                 alert(`${targetUsername} has been kicked`);
+            } else {
+                const data = await res.json();
+                alert(data.error);
             }
         } catch (err) {
             console.error(err);

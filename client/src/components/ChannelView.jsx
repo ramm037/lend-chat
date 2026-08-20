@@ -10,6 +10,8 @@ function ChannelView({ channel, accessToken, socket, user }) {
     const [typingUsers, setTypingUsers] = useState([]);
     //typing users =  array of usernames currently typing
 
+    const [isKicked, setIsKicked] = useState(false);
+
     const [hasMore, setHasMore] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
 
@@ -25,6 +27,8 @@ function ChannelView({ channel, accessToken, socket, user }) {
     //fetch latest messages on channel open
     useEffect(() => {
         if (!channel) return;
+
+        setIsKicked(false);
 
         const fetchMessages = async () => {
             setLoading(true);
@@ -132,13 +136,13 @@ function ChannelView({ channel, accessToken, socket, user }) {
             setMessages(prev => prev.filter(m => m.id !== messageId));
         });
 
-        socket.on('kicked_from_channel', ({ channelId: kickedChannelId, targetUserId }) => {
+        socket.on('kicked_from_channel', ({ channelId: kickedChannelId }) => {
             if (Number(kickedChannelId) === Number(channel?.id)) {
 
                 setMembers([]);
                 setMessages([]);
-                //clear channel view - user was kciked
-                setMembers(prev => prev.filter(m => m.id !== targetUserId))
+                setIsKicked(true);
+            
                 alert("You have been removed from this channel");
             }
         });
@@ -146,7 +150,7 @@ function ChannelView({ channel, accessToken, socket, user }) {
         socket.on('member_kicked', ({ channelId: kickedChannel, targetUserId }) => {
             if (Number(kickedChannel) === Number(channel?.id)) {
                 // Remove from members state immediately
-                setMembers(prev => prev.filter(m => m.id !== targetUserId));
+                setMembers(prev => prev.filter(m => m.id !== Number(targetUserId)));
             }
         });
 
@@ -395,46 +399,49 @@ function ChannelView({ channel, accessToken, socket, user }) {
             </div>
 
 
-            <div style={{
-                padding: 16,
-                borderTop: '1px solid #eee',
-                display: 'flex',
-                gap: 8
-            }}>
-                <ImageUpload
-                    accessToken={accessToken}
-                    channelId={channel.id}
-                    socket={socket}
-                    isDM={false}
-                />
-                <input
-                    value={input}
-                    onChange={handleInputChange}
-                    onKeyDown={handleKeyDown}
-                    placeholder={`Message #${channel.name}`}
-                    style={{
-                        flex: 1,
-                        padding: '8px 12px',
-                        borderRadius: 4,
-                        border: '1px solid #ccc',
-                        fontSize: 14,
-                    }}
-                />
-                <button
-                    onClick={sendMessage}
-                    disabled={!input.trim()}
-                    style={{
-                        padding: '8px 16px',
-                        borderRadius: 4,
-                        backgroundColor: '#007bff',
-                        color: '#fff',
-                        border: 'none',
-                        cursor: input.trim() ? 'pointer' : 'not-allowed'
-                    }}
-                >
-                    Send
-                </button>
-            </div>
+            {/* Input area */}
+            {isKicked ? (
+                <div style={{
+                    padding: 16,
+                    borderTop: '1px solid #eee',
+                    textAlign: 'center',
+                    color: '#ef4444',
+                    fontSize: 14
+                }}>
+                    You have been removed from this channel.
+                </div>
+            ) : (
+                <div style={{ padding: 16, borderTop: '1px solid #eee', display: 'flex', gap: 8 }}>
+                    <ImageUpload
+                        accessToken={accessToken}
+                        channelId={channel.id}
+                        socket={socket}
+                        isDM={false}
+                    />
+                    <input
+                        value={input}
+                        onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
+                        placeholder={`Message #${channel.name}`}
+                        style={{
+                            flex: 1, padding: '8px 12px',
+                            borderRadius: 4, border: '1px solid #ccc', fontSize: 14
+                        }}
+                    />
+                    <button
+                        onClick={sendMessage}
+                        disabled={!input.trim()}
+                        style={{
+                            padding: '8px 16px', borderRadius: 4,
+                            background: input.trim() ? '#007bff' : '#ccc',
+                            color: 'white', border: 'none',
+                            cursor: input.trim() ? 'pointer' : 'not-allowed'
+                        }}
+                    >
+                        Send
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

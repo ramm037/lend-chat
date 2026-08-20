@@ -54,13 +54,20 @@ function Chat({ accessToken, user, onLogout }) {
 
     socket.on('kicked_from_channel', ({ channelId }) => {
       //if currently viewing that channel - clear it
-      if(selectedChannel && Number(selectedChannel.id) === Number(channelId)) {
-        selectedChannel(null);
+      if (selectedChannel && Number(selectedChannel.id) === Number(channelId)) {
+        setSelectedChannel(null);
       }
       //refresh sidebar channel list
       //emit custom event to trigger sidebar refetch
       setShouldRefreshChannels(prev => prev + 1);
     })
+
+    socket.on('channel_deleted', ({ channelId }) => {
+      if (selectedChannel && Number(selectedChannel.id) === Number(channelId)) {
+        setSelectedChannel(null);
+      }
+      setShouldRefreshChannels(prev => prev + 1);
+    });
 
     return () => {
       socket.off('new_message', handleNewMessage);

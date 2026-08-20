@@ -281,6 +281,29 @@ io.on('connection', async (socket) => {
       };
 
       io.to(`dm_${dmId}`).emit('new_dm', newDM);
+
+      //Get the other user in thid DM
+      const [otherMembers] = await db.query(
+        `SELECT user_id FROM channel_members
+         WHERE channel_id = ? AND user_id != ?`,
+        [dmId, userId]
+      );
+
+      //send notification to other user
+      for (const member of otherMembers) {
+        await db.query(
+          `INSERT INTO notifications (user_id, type, content, channel_id)
+         VALUES (?, 'dm', ?, ?)`,
+          [member.user_id, `${username}: ${content.trim().substring(0, 50)}`, dmId]
+        );
+
+        io.to(`user_${member.user_id}`).emit('new_notification', {
+          type: 'dm',
+          content: `${username}: ${content.trim().substring(0, 50)}`,
+          channelId: dmId,
+          created_at: new Date().toISOString()
+        })
+      }
     } catch (err) {
       console.error(err);
       socket.emit('error', { message: 'Failed to send DM' });
@@ -325,10 +348,17 @@ io.on('connection', async (socket) => {
 
   socket.on('admin_kick_user', ({ channelId, targetUserId }) => {
     //Tell the kicked user to leave the channel UI
-    io.to(`user_${targetUserId}`).emit('kicked_from_channel', { channelId })
+    io.to(`user_${targetUserId}`).emit('kicked_from_channel', { channelId, targetUserId });
+
+    //Notify eceryone else in the channel
+    io.to(`channel_${channelId}`).emit('member_kicked', {
+      channelId,
+      targetUserId
+    });
   });
 
   socket.on('admin_delete_channel', ({ channelId }) => {
+    //notify everyone in the channel
     io.to(`channel_${channelId}`).emit('channel_deleted', { channelId })
   });
 
