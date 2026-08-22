@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, onlineUsers = {}, unreadCounts = {}, refreshTrigger = 0 }) {
+function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, onlineUsers = {}, unreadCounts = {}, refreshTrigger = 0, socket }) {
     const [myChannels, setMyChannels] = useState([]);
     const [allChannels, setAllChannels] = useState([]);
     const [myDMs, setMyDMs] = useState([]);
@@ -79,7 +79,12 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
                 headers: authHeaders
             });
             const data = await res.json();
-            if (!res.ok) { alert(data.error); return; }
+
+            if (res.ok) {
+                socket.emit('member_joined', { channelId })
+            } else {
+                alert(data.error)
+            }
             fetchMyChannels();
         } catch (err) {
             console.error(err);

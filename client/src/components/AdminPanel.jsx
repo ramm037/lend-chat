@@ -63,6 +63,10 @@ function AdminPanel({ channel, members, accessToken, socket, onChannelDeleted, u
             );
 
             if (res.ok) {
+                socket.emit('admin_delete_channel', {
+                    channelId: channel.id
+                });
+
                 onChannelDeleted(channel.id);
             }
         } catch (err) {

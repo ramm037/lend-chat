@@ -114,20 +114,36 @@ function ChannelView({ channel, accessToken, socket, user }) {
         };
 
         //Add username to typing list
-        const handleTypingStart = ({ username, channelId }) => {
-            if (Number(channelId) === Number(channel?.id)) {
-                setTypingUsers(prev =>
-                    prev.includes(username) ? prev : [...prev, username]
-                );
-            }
+        const handleTypingStart = ({ userId, username, channelId }) => {
+            if (Number(channelId) !== Number(channel?.id)) return;
+
+            setTypingUsers(prev => {
+                if (prev.some(user => Number(user.id) === Number(userId))) {
+                    return prev;
+                }
+
+                return [
+                    ...prev,
+                    {
+                        id: userId,
+                        username
+                    }
+                ];
+            });
         };
 
         //remove username from typing list
         const handleTypingStop = ({ channelId, username: typingUsername }) => {
+            if (Number(channelId) !== Number(channel?.id)) return;
+
+            setTypingUsers(prev =>
+                prev.filter(user => user.username !== typingUsername)
+            );
+        };
+
+        const handleMembersUpdated = ({ channelId, members }) => {
             if (Number(channelId) === Number(channel?.id)) {
-                setTypingUsers(prev =>
-                    prev.filter(u => u !== typingUsername)
-                );
+                setMembers(members);
             }
         };
 
@@ -142,7 +158,8 @@ function ChannelView({ channel, accessToken, socket, user }) {
                 setMembers([]);
                 setMessages([]);
                 setIsKicked(true);
-            
+                setTypingUsers([]);
+
                 alert("You have been removed from this channel");
             }
         });
@@ -151,9 +168,16 @@ function ChannelView({ channel, accessToken, socket, user }) {
             if (Number(kickedChannel) === Number(channel?.id)) {
                 // Remove from members state immediately
                 setMembers(prev => prev.filter(m => m.id !== Number(targetUserId)));
+
+                // Remove user from typing indicator
+                setTypingUsers(prev =>
+                    prev.filter(user => user.id !== Number(targetUserId))
+                );
             }
         });
 
+
+        socket.on('members_updated', handleMembersUpdated);
         socket.on('new_message', handleNewMessage);
         socket.on('user_typing', handleTypingStart);
         socket.on('user_stopped_typing', handleTypingStop);
@@ -165,6 +189,7 @@ function ChannelView({ channel, accessToken, socket, user }) {
             socket.off('message_deleted');
             socket.off('kicked_from_channel');
             socket.off('member_kicked');
+            socket.off('members_updated', handleMembersUpdated);
         };
     }, [socket, channel]);
 
@@ -393,7 +418,9 @@ function ChannelView({ channel, accessToken, socket, user }) {
             <div style={{ padding: '0 16px', height: 20, fontsize: 12, color: '#888' }}>
                 {typingUsers.length > 0 && (
                     <span>
-                        {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
+                        {typingUsers.map(user => user.username).join(', ')}
+                        {' '}
+                        {typingUsers.length === 1 ? 'is' : 'are'} typing...
                     </span>
                 )}
             </div>

@@ -136,6 +136,7 @@ function Chat({ accessToken, user, onLogout }) {
         onlineUsers={onlineUsers}
         unreadCounts={unreadCounts}
         refreshTrigger={shouldRefreshChannels}
+        socket={socket}
       />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{
@@ -163,7 +164,7 @@ function Chat({ accessToken, user, onLogout }) {
         {/* Show ChannelView or DMView depending on what's selected */}
         {selectedDM
           ? <DMView dm={selectedDM} accessToken={accessToken} socket={socket} />
-          : <ChannelView channel={selectedChannel} accessToken={accessToken} socket={socket} user={user} />
+          : <ChannelView channel={selectedChannel} accessToken={accessToken} socket={socket} user={user} setSelectedChannel={setSelectedChannel} />
         }
       </div>
     </div>

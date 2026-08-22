@@ -144,6 +144,26 @@ io.on('connection', async (socket) => {
     console.error('Connection error:', err);
   }
 
+  //members join update
+  socket.on('member_joined', async ({ channelId }) => {
+    try {
+      const [members] = await db.query(
+        `SELECT u.id, u.username, u.avatar_url, cm.role
+             FROM users u
+             JOIN channel_members cm ON u.id = cm.user_id
+             WHERE cm.channel_id = ?`,
+        [channelId]
+      );
+
+      io.to(`channel_${channelId}`).emit('members_updated', {
+        channelId,
+        members
+      });
+    } catch (err) {
+      console.error('members_upadated error:', err);
+    }
+  })
+
   // Broadcast image message to channel room
   socket.on('send_channel_image', ({ channelId, newMessage }) => {
 
@@ -315,31 +335,73 @@ io.on('connection', async (socket) => {
   //server broadcasts to the room - everyone sees the indicator
   //Nothing is aved to db typing state is purely real time
 
-  socket.on('typing_start', ({ channelId, isDM }) => {
-    const room = isDM ? `dm_${channelId}` : `channel_${channelId}`;
+  socket.on('typing_start', async ({ channelId, isDM }) => {
+    try {
+      const userId = socket.user?.id;
 
-    //socket.to() excludes sender - you don't need to see
-    //your own typing indictaor
+      // For DMs, keep your existing DM logic
+      if (isDM) {
+        // existing DM logic
+        return;
+      }
 
-    socket.to(room).emit('user_typing', {
-      userId,
-      username,
-      channelId,
-      isDM
-    });
+      // Check whether user is still a member of the channel
+      const [membership] = await db.query(
+        `SELECT 1
+             FROM channel_members
+             WHERE channel_id = ? AND user_id = ?`,
+        [channelId, userId]
+      );
+
+      // User was kicked / is no longer a member
+      if (membership.length === 0) {
+        return;
+      }
+
+      // User is still a valid member → broadcast typing
+      socket.to(`channel_${channelId}`).emit('user_typing', {
+        userId,
+        username: socket.user.username,
+        channelId,
+        isDM: false
+      });
+
+    } catch (err) {
+      console.error('typing_start error:', err);
+    }
   });
 
-  //clients emits this when user stops typing
-  socket.on('typing_stop', ({ channelId, isDM }) => {
-    const room = isDM ? `dm_${channelId}` : `channel_${channelId}`;
+  socket.on('typing_stop', async ({ channelId, isDM }) => {
+    try {
+        const userId = socket.user?.id;
 
-    socket.to(room).emit('user_stopped_typing', {
-      userId,
-      username,
-      channelId,
-      isDM
-    });
-  });
+        if (isDM) {
+            // existing DM logic
+            return;
+        }
+
+        const [membership] = await db.query(
+            `SELECT 1
+             FROM channel_members
+             WHERE channel_id = ? AND user_id = ?`,
+            [channelId, userId]
+        );
+
+        if (membership.length === 0) {
+            return;
+        }
+
+        socket.to(`channel_${channelId}`).emit('user_stopped_typing', {
+            userId,
+            username: socket.user.username,
+            channelId,
+            isDM: false
+        });
+
+    } catch (err) {
+        console.error('typing_stop error:', err);
+    }
+});
 
   socket.on('admin_delete_message', ({ channelId, messageId }) => {
     // Tell all the clients in this channel to remove the message from UI
