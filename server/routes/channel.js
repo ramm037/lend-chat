@@ -1,8 +1,8 @@
 const express = require('express');
 const db = require('../db');
 const authMiddleware = require('../middleware/auth');
-
 const router = express.Router();
+const validate = require('../middleware/validate');
 
 //all channel routes are protected
 //apply authMiddleware to every route in this file at once
@@ -12,7 +12,7 @@ router.use(authMiddleware)
 
 
 //POST /api/channels
-router.post('/', async (req, res) => {
+router.post('/', validate('createChannel'), async (req, res) => {
   const { name, is_group = true } = req.body;
   //req.user comes from authMiddleware - it decoded the JWT
   const userId = req.user.id;

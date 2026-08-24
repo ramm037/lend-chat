@@ -5,10 +5,13 @@ const db = require('../db');
 const { generateAccessToken, generateRefreshToken } = require('../utils/token');
 const e = require('express');
 const router = express.Router();
+const validate = require('../middleware/validate');
 
 // register
 
-router.post('/register', async (req, res) => {
+router.post('/register', validate('register'), async (req, res) => {
+    // all validation already done by the middlware
+    // req.body us guaranted to be valid here
     const { username, email, password } = req.body;
 
     if (!username || !email || !password) {
@@ -80,7 +83,8 @@ router.post('/register', async (req, res) => {
 
 // ─── LOGIN ──────────────────────────────────────────────────
 
-router.post('/login', async (req, res) => {
+//login with validation
+router.post('/login', validate('login'),async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {

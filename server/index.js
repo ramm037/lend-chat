@@ -18,6 +18,11 @@ const searchRoutes = require('./routes/search');
 const notificationRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
 const { type } = require('os');
+const { apiLimiter, authLimiter } = require('./middleware/rateLimiter');
+const { errorHandler, notFound } = require('./middleware/errorHandler');
+const socketRateLimit = require('./middleware/socketRateLimiter');
+
+
 
 
 const app = express();
@@ -65,6 +70,15 @@ app.use('/api/search', searchRoutes);
 app.use('/api/notifications', notificationRoutes);
 
 app.use('/api/admin', adminRoutes);
+
+//Apply general rate limter to all routes
+app.use('/api/', apiLimiter);
+
+//404 handler - must come after all routes
+app.use(notFound);
+
+//Global error handler - must be last after all routes and middleware
+app.use(errorHandler)
 
 //This fires every time a browser tab opens a socket connection
 //socket auth middle ware
@@ -209,6 +223,12 @@ io.on('connection', async (socket) => {
     if (!content?.trim() || !channelId) return;
 
     try {
+      //check rate limit - 30 messages per minute per user
+      const allowed = await socketRateLimit(userId, 'send_message', 30, 60);
+      if (!allowed) {
+        socket.emit('error', { message: 'Youu are sending messages too fast. Slow down!' });
+        return;
+      }
       const [membership] = await db.query(
         'SELECT * FROM channel_members WHERE channel_id=? AND user_id = ?',
         [channelId, userId]
@@ -373,35 +393,35 @@ io.on('connection', async (socket) => {
 
   socket.on('typing_stop', async ({ channelId, isDM }) => {
     try {
-        const userId = socket.user?.id;
+      const userId = socket.user?.id;
 
-        if (isDM) {
-            // existing DM logic
-            return;
-        }
+      if (isDM) {
+        // existing DM logic
+        return;
+      }
 
-        const [membership] = await db.query(
-            `SELECT 1
+      const [membership] = await db.query(
+        `SELECT 1
              FROM channel_members
              WHERE channel_id = ? AND user_id = ?`,
-            [channelId, userId]
-        );
+        [channelId, userId]
+      );
 
-        if (membership.length === 0) {
-            return;
-        }
+      if (membership.length === 0) {
+        return;
+      }
 
-        socket.to(`channel_${channelId}`).emit('user_stopped_typing', {
-            userId,
-            username: socket.user.username,
-            channelId,
-            isDM: false
-        });
+      socket.to(`channel_${channelId}`).emit('user_stopped_typing', {
+        userId,
+        username: socket.user.username,
+        channelId,
+        isDM: false
+      });
 
     } catch (err) {
-        console.error('typing_stop error:', err);
+      console.error('typing_stop error:', err);
     }
-});
+  });
 
   socket.on('admin_delete_message', ({ channelId, messageId }) => {
     // Tell all the clients in this channel to remove the message from UI
