@@ -1,4 +1,5 @@
 import { useState } from "react";
+import apiFetch from '../utils/api';
 
 function Auth({ onAuth }) {
     const [isLogin, setIsLogin] = useState(true);
@@ -38,7 +39,8 @@ function Auth({ onAuth }) {
 
             onAuth({ accessToken: data.accessToken, user: data.user });
         } catch (err) {
-            setError('Something went wrong');
+            // Shows validation errors, rate limit messages etc
+            setError(err.message);
         }
     };
     return (
