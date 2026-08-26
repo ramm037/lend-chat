@@ -259,12 +259,12 @@ function ChannelView({ channel, accessToken, socket, user }) {
     }
 
     return (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
 
             {/* channel header*/}
             <div style={{
                 padding: '12px 16px',
-                borderBottom: '1px solid #eee',
+                borderBottom: '1px solid var(--border)',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center'
@@ -329,108 +329,62 @@ function ChannelView({ channel, accessToken, socket, user }) {
                     <div key={msg.id} style={{
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: 2,
-                        position: 'relative'
+                        gap: 4,
+                        padding: '8px 12px',
+                        borderRadius: 8,
+                        transition: 'background 0.15s'
                     }}
-
-                        onMouseEnter={e => {
-                            const btn = e.currentTarget.querySelector('.delete-btn');
-                            if (btn) btn.style.display = 'block';
-                        }}
-
-                        onMouseLeave={e => {
-                            const btn = e.currentTarget.querySelector('.delete-btn');
-                            if (btn) btn.style.display = 'none';
-                        }}
+                        onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}
+                        onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                            <span style={{ fontWeight: 'bold', fontSize: 14 }}>
+                            <span style={{
+                                fontWeight: '600', fontSize: 14,
+                                color: 'var(--accent-bright)'
+                            }}>
                                 {msg.username}
                             </span>
-                            <span style={{ fontSize: 11, color: '#aaa' }}>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                                 {new Date(msg.created_at).toLocaleTimeString([], {
-                                    hour: '2-digit',
-                                    minute: '2-digit'
+                                    hour: '2-digit', minute: '2-digit'
                                 })}
                             </span>
-                            {/* Admin delete button — only shows on hover */}
-                            {userRole === 'admin' && (
-                                <button
-                                    className="delete-btn"
-                                    onClick={() => {
-                                        if (window.confirm('Delete this message?')) {
-                                            fetch(
-                                                `http://localhost:5000/api/admin/channels/${channel.id}/messages/${msg.id}`,
-                                                { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } }
-                                            ).then(() => {
-                                                socket.emit('admin_delete_message', {
-                                                    channelId: channel.id,
-                                                    messageId: msg.id
-                                                });
-                                            });
-                                        }
-                                    }}
-                                    style={{
-                                        display: 'none',
-                                        marginLeft: 8,
-                                        padding: '1px 6px',
-                                        borderRadius: 4,
-                                        border: 'none',
-                                        backgroundColor: '#ef4444',
-                                        color: 'white',
-                                        fontSize: 10,
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    delete
-                                </button>
-                            )}
                         </div>
-                        {/* Text message */}
                         {msg.content && (
-                            <span style={{ fontSize: 14 }}>{msg.content}</span>
+                            <span style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.5 }}>
+                                {msg.content}
+                            </span>
                         )}
-                        {/*Image message*/}
                         {msg.image_url && (
                             <img
                                 src={msg.image_url}
-                                alt="shared image"
+                                alt="shared"
                                 style={{
-                                    maxWidth: 300,
-                                    maxHeight: 300,
-                                    borderRadius: 8,
-                                    cursor: 'pointer',
-                                    objectFit: 'cover'
+                                    maxWidth: 300, maxHeight: 300,
+                                    borderRadius: 8, cursor: 'pointer',
+                                    border: '1px solid var(--border)'
                                 }}
                                 onClick={() => window.open(msg.image_url, '_blank')}
                             />
-
                         )}
                     </div>
                 ))}
-
-
                 <div ref={bottomRef} />
             </div>
 
-            {/* Typing indicator */}
-            <div style={{ padding: '0 16px', height: 20, fontsize: 12, color: '#888' }}>
+            <div style={{ padding: '0 16px', height: 22, fontSize: 12, color: 'var(--text-muted)' }}>
                 {typingUsers.length > 0 && (
                     <span>
-                        {typingUsers.map(user => user.username).join(', ')}
-                        {' '}
-                        {typingUsers.length === 1 ? 'is' : 'are'} typing...
+                        {typingUsers.map(typingUser => typingUser.username).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
                     </span>
                 )}
             </div>
-
 
             {/* Input area */}
             {isKicked ? (
                 <div style={{
                     padding: 16,
-                    borderTop: '1px solid #eee',
+                    borderTop: '1px solid var(--border)',
                     textAlign: 'center',
                     color: '#ef4444',
                     fontSize: 14
@@ -438,7 +392,13 @@ function ChannelView({ channel, accessToken, socket, user }) {
                     You have been removed from this channel.
                 </div>
             ) : (
-                <div style={{ padding: 16, borderTop: '1px solid #eee', display: 'flex', gap: 8 }}>
+                <div style={{
+                    padding: '12px 16px 16px',
+                    borderTop: '1px solid var(--border)',
+                    backgroundColor: 'var(--surface)',
+                    display: 'flex',
+                    gap: 8
+                }}>
                     <ImageUpload
                         accessToken={accessToken}
                         channelId={channel.id}
@@ -451,18 +411,30 @@ function ChannelView({ channel, accessToken, socket, user }) {
                         onKeyDown={handleKeyDown}
                         placeholder={`Message #${channel.name}`}
                         style={{
-                            flex: 1, padding: '8px 12px',
-                            borderRadius: 4, border: '1px solid #ccc', fontSize: 14
+                            flex: 1,
+                            padding: '10px 16px',
+                            borderRadius: 8,
+                            border: '1px solid var(--border)',
+                            backgroundColor: 'var(--surface)',
+                            color: 'var(--text-h)',
+                            fontSize: 14,
+                            outline: 'none',
+                            fontFamily: 'var(--font-body)'
                         }}
                     />
                     <button
                         onClick={sendMessage}
                         disabled={!input.trim()}
                         style={{
-                            padding: '8px 16px', borderRadius: 4,
-                            background: input.trim() ? '#007bff' : '#ccc',
-                            color: 'white', border: 'none',
-                            cursor: input.trim() ? 'pointer' : 'not-allowed'
+                            padding: '10px 20px',
+                            borderRadius: 8,
+                            border: 'none',
+                            background: 'linear-gradient(135deg, var(--accent), #4c1d95)',
+                            color: 'white',
+                            cursor: 'pointer',
+                            fontWeight: '600',
+                            boxShadow: 'var(--glow-sm)',
+                            transition: 'all 0.2s'
                         }}
                     >
                         Send

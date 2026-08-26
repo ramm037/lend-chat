@@ -1,4 +1,5 @@
 import { useState } from "react";
+import LandingPage from './components/LandingPage';
 import Auth from './components/Auth'
 import Chat from './components/Chat'
 
@@ -8,11 +9,13 @@ function App() {
   // using the httpOnly cookie the browser automatically sends
   const [accessToken, setAccessToken] = useState(null);
   const [user, setUser] = useState(null);
+  const [launched, setLaunched] = useState(false);
 
   const handleAuth = (data) => {
     //data = { accessToken , user }
     setAccessToken(data.accessToken);
     setUser(data.user);
+    
   };
 
   const handleLogout = async () => {
@@ -22,10 +25,16 @@ function App() {
     });
     setAccessToken(null);
     setUser(null);
+    setLaunched(false); // back to landing on logout
   };
 
+  // Show landing page first
+  if (!launched) {
+    return <LandingPage onEnter={() => setLaunched(true)} />;
+  }
+
   return (
-    <div style={{ padding: 40 }}>
+    <div style={{ width: '100vw', height: '100vh', backgroundColor: 'var(--bg)' }}>
       {accessToken ? (
         <Chat accessToken={accessToken} user={user} onLogout={handleLogout} />
       ) : (<Auth onAuth={handleAuth} />

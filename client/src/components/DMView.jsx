@@ -73,16 +73,16 @@ function DMView({ dm, accessToken, socket }) {
     if (!socket || !dm) return;
 
     const handleNewDM = (message) => {
-    console.log('new_dm received:', message);
-    console.log('dm.id:', dm?.id);
-    console.log('match dm_id:', Number(message.dm_id) === Number(dm?.id));
-    console.log('match channel_id:', Number(message.channel_id) === Number(dm?.id));
-    
-    if (Number(message.dm_id) === Number(dm?.id) ||
+      console.log('new_dm received:', message);
+      console.log('dm.id:', dm?.id);
+      console.log('match dm_id:', Number(message.dm_id) === Number(dm?.id));
+      console.log('match channel_id:', Number(message.channel_id) === Number(dm?.id));
+
+      if (Number(message.dm_id) === Number(dm?.id) ||
         Number(message.channel_id) === Number(dm?.id)) {
         setMessages(prev => [...prev, message]);
-    }
-};
+      }
+    };
 
     const handleTypingStart = ({ username, channelId }) => {
       if (Number(channelId) === Number(dm.id)) {
@@ -151,7 +151,7 @@ function DMView({ dm, accessToken, socket }) {
   }
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
 
       {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee' }}>
@@ -191,21 +191,44 @@ function DMView({ dm, accessToken, socket }) {
         )}
 
         {messages.map(msg => (
-          <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div key={msg.id} style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4,
+            padding: '8px 12px',
+            borderRadius: 8,
+            transition: 'background 0.15s'
+          }}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              <span style={{ fontWeight: 'bold', fontSize: 14 }}>{msg.username}</span>
-              <span style={{ fontSize: 11, color: '#aaa' }}>
-                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              <span style={{
+                fontWeight: '600', fontSize: 14,
+                color: 'var(--accent-bright)'
+              }}>
+                {msg.username}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                {new Date(msg.created_at).toLocaleTimeString([], {
+                  hour: '2-digit', minute: '2-digit'
+                })}
               </span>
             </div>
             {msg.content && (
-              <span style={{ fontSize: 14 }}>{msg.content}</span>
+              <span style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.5 }}>
+                {msg.content}
+              </span>
             )}
             {msg.image_url && (
               <img
                 src={msg.image_url}
-                alt="shared image"
-                style={{ maxWidth: 300, maxHeight: 300, borderRadius: 8, cursor: 'pointer', objectFit: 'cover' }}
+                alt="shared"
+                style={{
+                  maxWidth: 300, maxHeight: 300,
+                  borderRadius: 8, cursor: 'pointer',
+                  border: '1px solid var(--border)'
+                }}
                 onClick={() => window.open(msg.image_url, '_blank')}
               />
             )}
@@ -225,13 +248,25 @@ function DMView({ dm, accessToken, socket }) {
       </div>
 
       {/* Input */}
-      <div style={{ padding: 16, borderTop: '1px solid #eee', display: 'flex', gap: 8 }}>
+      <div style={{
+        padding: 16, borderTop: '1px solid #eee', display: 'flex', gap: 8
+      }}>
         <input
           value={input}
           onChange={handleInputChange}
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendDM())}
           placeholder={`Message @ ${dm.other_username}`}
-          style={{ flex: 1, padding: '8px 12px', borderRadius: 4, border: '1px solid #ccc', fontSize: 14 }}
+          style={{
+            flex: 1,
+            padding: '10px 16px',
+            borderRadius: 8,
+            border: '1px solid var(--border)',
+            backgroundColor: 'var(--surface)',
+            color: 'var(--text-h)',
+            fontSize: 14,
+            outline: 'none',
+            fontFamily: 'var(--font-body)'
+          }}
         />
         <ImageUpload
           accessToken={accessToken}
@@ -242,7 +277,17 @@ function DMView({ dm, accessToken, socket }) {
         <button
           onClick={sendDM}
           disabled={!input.trim()}
-          style={{ padding: '8px 16px', borderRadius: 4, background: input.trim() ? '#007bff' : '#ccc', color: 'white', border: 'none', cursor: input.trim() ? 'pointer' : 'not-allowed' }}
+          style={{
+            padding: '10px 20px',
+            borderRadius: 8,
+            border: 'none',
+            background: 'linear-gradient(135deg, var(--accent), #4c1d95)',
+            color: 'white',
+            cursor: 'pointer',
+            fontWeight: '600',
+            boxShadow: 'var(--glow-sm)',
+            transition: 'all 0.2s'
+          }}
         >
           Send
         </button>

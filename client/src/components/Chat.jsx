@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
-import Sidebar from './sidebar';
+import Sidebar from './Sidebar';
 import ChannelView from './ChannelView';
 import DMView from './DMView';
 import usePresence from '../hooks/usePresence';
@@ -133,35 +133,94 @@ function Chat({ accessToken, user, onLogout }) {
         onSelectChannel={handleSelectChannel}
         onSelectDM={handleSelectDM}
         selectedId={selectedId}
+        selectedChannelId={selectedChannel?.id || selectedDM?.id}
         onlineUsers={onlineUsers}
         unreadCounts={unreadCounts}
         refreshTrigger={shouldRefreshChannels}
         socket={socket}
       />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{
-          padding: '12px 24px',
-          borderBottom: '1px solid #ccc',
+          padding: '0 24px',
+          height: 56,
+          borderBottom: '1px solid var(--border)',
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
-          gap: 16
+          justifyContent: 'space-between',
+          gap: 16,
+          backgroundColor: 'var(--surface)',
+          backdropFilter: 'blur(10px)'
         }}>
-          <span style={{ whiteSpace: 'nowrap' }}>{user.username} — {connected ? '🟢 Online' : '🔴 Connecting...'}</span>
-
-          <SearchBar
-            accessToken={accessToken}
-            onSelectChannel={handleSelectChannel}
-            onSelectDM={handleSelectDM}
-          />
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <NotificationBell accessToken={accessToken} socket={socket} />
-            <button onClick={onLogout}>Logout</button>
+          {/* Logo + username */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+            <span style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 14,
+              letterSpacing: 3,
+              color: 'var(--accent-bright)',
+              textShadow: 'var(--glow-sm)'
+            }}>✦ SPACE CHAT
+            </span>
+            <span style={{
+              fontSize: 12,
+              color: 'var(--text-muted)',
+              padding: '3px 10px',
+              borderRadius: 20,
+              border: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}>
+              <span style={{
+                width: 6, height: 6,
+                borderRadius: '50%',
+                backgroundColor: connected ? 'var(--green)' : 'var(--red)',
+                display: 'inline-block',
+                boxShadow: connected ? '0 0 6px var(--green)' : 'none'
+              }} />
+              {user?.username}
+            </span>
           </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <SearchBar
+              accessToken={accessToken}
+              onSelectChannel={handleSelectChannel}
+              onSelectDM={handleSelectDM}
+            />
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              <NotificationBell accessToken={accessToken} socket={socket} />
+              <button
+                onClick={onLogout}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 6,
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'transparent',
+                  color: 'var(--text-muted)',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-display)',
+                  letterSpacing: 2,
+                  transition: 'all 0.2s'
+                }} onMouseEnter={e => {
+                  e.target.style.borderColor = 'var(--red)';
+                  e.target.style.color = 'var(--red)';
+                }}
+                onMouseLeave={e => {
+                  e.target.style.borderColor = 'var(--border)';
+                  e.target.style.color = 'var(--text-muted)';
+                }}
+              >
+                EJECT
+              </button>
+            </div>
+          </div>
+
         </div>
 
-        {/* Show ChannelView or DMView depending on what's selected */}
+        {/* Keep the conversation below the global toolbar so it can fill the page. */}
         {selectedDM
           ? <DMView dm={selectedDM} accessToken={accessToken} socket={socket} />
           : <ChannelView channel={selectedChannel} accessToken={accessToken} socket={socket} user={user} setSelectedChannel={setSelectedChannel} />
