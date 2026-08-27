@@ -53,6 +53,16 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
         fetchAllUsers();
     }, [refreshTrigger]);
 
+    useEffect(() => {
+        if (!socket) return;
+
+        socket.on('user_joined', () => {
+            fetchAllUsers(); // refetch users list
+        });
+
+        return () => socket.off('user_joined');
+    }, [socket]);
+
     const createChannel = async () => {
         if (!newChannelName.trim()) return;
         setError('');
@@ -100,8 +110,18 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
         const data = await res.json();
         if (!res.ok) { alert(data.error); return; }
         await fetchMyDMs();
+
+        // Tell server to put both users in the DM socket room
+        if (socket) {
+            socket.emit('new_dm_created', {
+                dmId: data.dmId,
+                targetUserId
+            });
+        }
+
         const targetUser = allUsers.find(u => u.id === targetUserId);
         const name = targetUser ? targetUser.username : 'Direct Message';
+
         if (typeof onSelectDM === 'function') {
             onSelectDM({ id: data.dmId, other_username: name });
         }

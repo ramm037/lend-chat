@@ -345,6 +345,14 @@ io.on('connection', async (socket) => {
         [dmId, userId]
       );
 
+      // emit to the other user to join the new DM room
+      socket.on('new_dm_created', ({ dmId, targetUserId }) => {
+        // Add sender to room
+        socket.join(`dm_${dmId}`);
+        // Tell receiver to join too
+        io.to(`user_${targetUserId}`).emit('join_new_dm', { dmId });
+      });
+
       //send notification to other user
       for (const member of otherMembers) {
         await db.query(
@@ -517,6 +525,13 @@ io.on('connection', async (socket) => {
         readBy: userId,
         readByUsername: username,
         readAt: new Date().toISOString()
+      });
+
+      // Broadcast to everyone that a new user is online
+      // so other users' people lists update
+      socket.broadcast.emit('user_joined', {
+        id: userId,
+        username
       });
     } catch (err) {
       console.error('mark_read error:', err)

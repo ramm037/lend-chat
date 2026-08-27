@@ -90,6 +90,19 @@ function Chat({ accessToken, user, onLogout }) {
     };
   }, [socket, selectedChannel, selectedDM])
 
+  useEffect(() => {
+    if (!socket) return;
+
+    // When server tells us to join a new DM room
+    socket.on('join_new_dm', ({ dmId }) => {
+      socket.emit('join_dm', dmId);
+      // Refresh DM list in sidebar
+      setShouldRefreshChannels(prev => prev + 1);
+    });
+
+    return () => socket.off('join_new_dm');
+  }, [socket]);
+
   const handleSelectChannel = (channel) => {
     setSelectedChannel(channel);
     setSelectedDM(null); // clear DM when switching to channel
