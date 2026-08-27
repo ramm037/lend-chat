@@ -7,6 +7,7 @@ import usePresence from '../hooks/usePresence';
 import useUnreadCounts from '../hooks/useUnreadCounts';
 import SearchBar from './SearchBar';
 import NotificationBell from './NotificationBell';
+import EmptyState from './EmptyState';
 
 function Chat({ accessToken, user, onLogout }) {
   const [connected, setConnected] = useState(false);
@@ -221,10 +222,16 @@ function Chat({ accessToken, user, onLogout }) {
         </div>
 
         {/* Keep the conversation below the global toolbar so it can fill the page. */}
-        {selectedDM
-          ? <DMView dm={selectedDM} accessToken={accessToken} socket={socket} />
-          : <ChannelView channel={selectedChannel} accessToken={accessToken} socket={socket} user={user} setSelectedChannel={setSelectedChannel} />
-        }
+
+        {socket ? (
+          selectedDM
+            ? <DMView dm={selectedDM} accessToken={accessToken} socket={socket} user={user} />
+            : selectedChannel
+              ? <ChannelView channel={selectedChannel} accessToken={accessToken} socket={socket} user={user} setSelectedChannel={setSelectedChannel} />
+              : <EmptyState />  // ← shows when nothing selected
+        ) : (
+          <EmptyState />
+        )}
       </div>
     </div>
   );
