@@ -17,7 +17,6 @@ const uploadRoutes = require('./routes/upload');
 const searchRoutes = require('./routes/search');
 const notificationRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
-const { type } = require('os');
 const { apiLimiter, authLimiter } = require('./middleware/rateLimiter');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 const socketRateLimit = require('./middleware/socketRateLimiter');
@@ -26,10 +25,22 @@ const socketRateLimit = require('./middleware/socketRateLimiter');
 
 
 const app = express();
-app.use(cors({
-  origin: 'http://localhost:5173',
+const clientOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+const corsOptions = {
+  origin(origin, callback) {
+    // Requests without an Origin header are non-browser clients such as curl.
+    if (!origin || clientOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+  },
   credentials: true
-})); // Vite default port
+};
+
+app.use(cors({
+  ...corsOptions
+}));
 app.use(express.json());
 
 //cookie parser must come before routes so req.cookies is available 
@@ -40,10 +51,11 @@ app.use(cookieParser());
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: {
-    origin: 'http://localhost:5173',
-    credentials: true
-  }
+  cors: corsOptions,
+  // Defaults are suitable for normal networks; explicit values make the
+  // heartbeat behaviour clear and avoid short proxy idle timeouts.
+  pingInterval: 25000,
+  pingTimeout: 60000
 });
 
 // Basic REST route to confirm Express itself is alive
@@ -141,18 +153,22 @@ io.on('connection', async (socket) => {
 
     //REDIS PRESENCE - SET ONLINE -----------------------------
     //STORE USER AS ONLINE IN REDIS
-    //EX 3600 = KEY EXPIRES AFTER 1 HOUR AUTOMATICALLY  
+    //EX 86400 = KEY EXPIRES AFTER one day automatically.
     //THIS MEANS EVEN IF DISCONNECT EVENT SOMEHOW MISSES
     //USER WON'T APPEAR ONLINE FOREVER
-    await redis.set(`online:${userId}`, 'true', 'EX', 3600);
+    const presenceKey = `online:${userId}`;
+    const wasOffline = !(await redis.get(presenceKey));
+    await redis.set(presenceKey, 'true', 'EX', 86400);
 
-    //notify everyone in users's channels that user is now online
-    channels.forEach(row => {
-      socket.to(`channel_${row.channel_id}`).emit('user_online', {
-        userId,
-        username
+    // Only announce once. A user may connect from several tabs/devices.
+    if (wasOffline) {
+      channels.forEach(row => {
+        socket.to(`channel_${row.channel_id}`).emit('user_online', {
+          userId,
+          username
+        });
       });
-    });
+    }
 
   } catch (err) {
     console.error('Connection error:', err);
@@ -423,6 +439,11 @@ io.on('connection', async (socket) => {
     }
   });
 
+  // DM message deleted — notify both users in DM
+  socket.on('delete_dm_message', ({ dmId, messageId }) => {
+    io.to(`dm_${dmId}`).emit('dm_message_deleted', { messageId, dmId });
+  });
+
   socket.on('admin_delete_message', ({ channelId, messageId }) => {
     // Tell all the clients in this channel to remove the message from UI
     io.to(`channel_${channelId}`).emit('message_deleted', { messageId });
@@ -445,11 +466,15 @@ io.on('connection', async (socket) => {
   });
 
   //---DISCONNECT - SET OFFLINE----------------------------
-  socket.on('disconnect', async () => {
-    console.log(`${username} disconnected`);
+  socket.on('disconnect', async (reason) => {
+    console.log(`${username} disconnected (${reason})`);
 
     try {
-      //remove from redis user is now offline
+      // A single user can have more than one socket. Do not mark them offline
+      // until the final tab/device disconnects.
+      const remainingSockets = await io.in(`user_${userId}`).fetchSockets();
+      if (remainingSockets.length > 0) return;
+
       await redis.del(`online:${userId}`);
 
       //get user's channel to notify them
@@ -462,7 +487,7 @@ io.on('connection', async (socket) => {
 
       // Notify everyone in user's channels that they went offline
       channels.forEach(row => {
-        socket.to(`channel_${row.channel_id}`).emit('user_offline', {
+        io.to(`channel_${row.channel_id}`).emit('user_offline', {
           userId,
           username
         });

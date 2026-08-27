@@ -1,13 +1,14 @@
 import { useEffect, useState, useRef } from 'react';
 import ImageUpload from './ImageUpload';
 
-function DMView({ dm, accessToken, socket }) {
+function DMView({ dm, accessToken, socket, user }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [hoveredMsg, setHoveredMsg] = useState(null);
 
   const typingTimeoutRef = useRef(null);
   const bottomRef = useRef(null);
@@ -98,6 +99,10 @@ function DMView({ dm, accessToken, socket }) {
       }
     };
 
+    socket.on('dm_message_deleted', ({ messageId }) => {
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+    });
+
     socket.on('new_dm', handleNewDM);
     socket.on('user_typing', handleTypingStart);
     socket.on('user_stopped_typing', handleTypingStop);
@@ -106,6 +111,7 @@ function DMView({ dm, accessToken, socket }) {
       socket.off('new_dm', handleNewDM);
       socket.off('user_typing', handleTypingStart);
       socket.off('user_stopped_typing', handleTypingStop);
+      socket.off('dm_message_deleted');
     };
   }, [socket, dm]);
 
@@ -113,6 +119,51 @@ function DMView({ dm, accessToken, socket }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  //delete message function
+  const deleteDMMessage = async (messageId) => {
+    if (!window.confirm('Delete this message?')) return;
+
+    try {
+      const res = await fetch(
+        `http://localhost:5000/api/dms/messages/${messageId}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${accessToken}` }
+        }
+      );
+
+      if (res.ok) {
+        // Notify other user in real time
+        socket.emit('delete_dm_message', { dmId: dm.id, messageId });
+        // Remove locally
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  //clear entire dm
+  const clearDM = async () => {
+    if (!window.confirm('Clear this conversation? Only clears for you.')) return;
+
+    try {
+      const res = await fetch(
+        `http://localhost:5000/api/dms/${dm.id}/clear`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${accessToken}` }
+        }
+      );
+
+      if (res.ok) {
+        setMessages([]); // clear locally immediately
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleInputChange = (e) => {
     setInput(e.target.value);
@@ -154,8 +205,30 @@ function DMView({ dm, accessToken, socket }) {
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
 
       {/* Header */}
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee' }}>
-        <h3 style={{ margin: 0 }}>@ {dm.other_username}</h3>
+      <div style={{
+        padding: '12px 16px',
+        borderBottom: '1px solid var(--border)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: 'var(--surface)'
+      }}>
+        <h3 style={{ margin: 0, color: 'var(--text-h)' }}>@ {dm.other_username}</h3>
+        <button
+          onClick={clearDM}
+          style={{
+            padding: '4px 10px',
+            borderRadius: 4,
+            border: '1px solid var(--border)',
+            backgroundColor: 'transparent',
+            color: 'var(--text-muted)',
+            fontSize: 11,
+            cursor: 'pointer'
+          }}
+          title="Clear conversation for you only"
+        >
+          Clear Chat
+        </button>
       </div>
 
       {/* Messages */}
@@ -191,22 +264,19 @@ function DMView({ dm, accessToken, socket }) {
         )}
 
         {messages.map(msg => (
-          <div key={msg.id} style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
-            padding: '8px 12px',
-            borderRadius: 8,
-            transition: 'background 0.15s'
-          }}
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+          <div
+            key={msg.id}
+            onMouseEnter={() => setHoveredMsg(msg.id)}
+            onMouseLeave={() => setHoveredMsg(null)}
+            style={{
+              display: 'flex', flexDirection: 'column', gap: 4,
+              padding: '8px 12px', borderRadius: 8,
+              backgroundColor: hoveredMsg === msg.id ? 'var(--surface-hover)' : 'transparent',
+              position: 'relative', transition: 'background 0.15s'
+            }}
           >
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              <span style={{
-                fontWeight: '600', fontSize: 14,
-                color: 'var(--accent-bright)'
-              }}>
+              <span style={{ fontWeight: '600', fontSize: 14, color: 'var(--accent-bright)' }}>
                 {msg.username}
               </span>
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -214,6 +284,21 @@ function DMView({ dm, accessToken, socket }) {
                   hour: '2-digit', minute: '2-digit'
                 })}
               </span>
+              {/* Delete button — only shows on hover for sender's own messages */}
+              {hoveredMsg === msg.id && msg.sender_id === user?.id && (
+                <button
+                  onClick={() => deleteDMMessage(msg.id)}
+                  style={{
+                    marginLeft: 8, padding: '1px 6px',
+                    borderRadius: 4, border: 'none',
+                    backgroundColor: 'rgba(239,68,68,0.2)',
+                    color: 'var(--red)', fontSize: 10,
+                    cursor: 'pointer'
+                  }}
+                >
+                  delete
+                </button>
+              )}
             </div>
             {msg.content && (
               <span style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.5 }}>
@@ -225,9 +310,8 @@ function DMView({ dm, accessToken, socket }) {
                 src={msg.image_url}
                 alt="shared"
                 style={{
-                  maxWidth: 300, maxHeight: 300,
-                  borderRadius: 8, cursor: 'pointer',
-                  border: '1px solid var(--border)'
+                  maxWidth: 300, maxHeight: 300, borderRadius: 8,
+                  cursor: 'pointer', border: '1px solid var(--border)'
                 }}
                 onClick={() => window.open(msg.image_url, '_blank')}
               />

@@ -36,6 +36,13 @@ router.get('/:channelId', async (req, res) => {
             return res.status(403).json({ error: 'Not a member of this channel' });
         }
 
+        const [memberInfo] = await db.query(
+            'SELECT cleared_at FROM channel_members WHERE channel_id = ? AND user_id = ?',
+            [channelId, userId]
+        );
+
+        const clearedAt = memberInfo[0]?.cleared_at;
+
         //FETCH MESSAGES WITH SENDER USERNAME JOINED IN-
         //messages table only stores sender_id, noy username, so we join with users table to get the username
         //JOIN gets the username so front end doesn't need a 
@@ -52,7 +59,7 @@ router.get('/:channelId', async (req, res) => {
             //try redis first
             const cached = await redis.get(cacheKey);
 
-            if (cached) {
+            if (cached && !clearedAt) {
                 //cache hit - return immediately without DB query
                 console.log(`Cache hit for channel ${channelId}`)
                 return res.json({
@@ -66,32 +73,46 @@ router.get('/:channelId', async (req, res) => {
         let query;
         let params;
 
+        // Build query conditionally instead of using ? IS NULL
         if (before) {
-            //fetch messages older than the cursor (before id)
-            //ORDER Y DESC to get the most recent ones before cursor,
-            //then reverse to display oldest first
-            query = `
-                SELECT m.id, m.content, m.image_url, m.created_at,
-                       u.id as sender_id, u.username, u.avatar_url
-                FROM messages m
-                JOIN users u ON m.sender_id = u.id
-                WHERE m.channel_id = ? AND m.id < ?
-                ORDER BY m.id DESC
-                LIMIT ?`;
+            query = clearedAt
+                ? `SELECT m.id, m.content, m.image_url, m.created_at,
+              u.id as sender_id, u.username, u.avatar_url
+       FROM messages m
+       JOIN users u ON m.sender_id = u.id
+       WHERE m.channel_id = ? AND m.id < ?
+         AND m.created_at > ?
+       ORDER BY m.id DESC LIMIT ?`
+                : `SELECT m.id, m.content, m.image_url, m.created_at,
+              u.id as sender_id, u.username, u.avatar_url
+       FROM messages m
+       JOIN users u ON m.sender_id = u.id
+       WHERE m.channel_id = ? AND m.id < ?
+       ORDER BY m.id DESC LIMIT ?`;
 
-            params = [channelId, before, limit];
+            params = clearedAt
+                ? [channelId, before, clearedAt, limit]
+                : [channelId, before, limit];
+
         } else {
-            //first load -  get latest messages
-            query = `
-              SELECT m.id, m.content, m.image_url, m.created_at,
-                     u.id as sender_id, u.username, u.avatar_url
-              FROM messages m
-              JOIN users u ON m.sender_id = u.id
-              WHERE m.channel_id = ?
-              ORDER BY m.id DESC
-              LIMIT ?`;
+            query = clearedAt
+                ? `SELECT m.id, m.content, m.image_url, m.created_at,
+              u.id as sender_id, u.username, u.avatar_url
+       FROM messages m
+       JOIN users u ON m.sender_id = u.id
+       WHERE m.channel_id = ?
+         AND m.created_at > ?
+       ORDER BY m.id DESC LIMIT ?`
+                : `SELECT m.id, m.content, m.image_url, m.created_at,
+              u.id as sender_id, u.username, u.avatar_url
+       FROM messages m
+       JOIN users u ON m.sender_id = u.id
+       WHERE m.channel_id = ?
+       ORDER BY m.id DESC LIMIT ?`;
 
-            params = [channelId, limit];
+            params = clearedAt
+                ? [channelId, clearedAt, limit]
+                : [channelId, limit];
         }
 
         const [messages] = await db.query(query, params);

@@ -95,6 +95,62 @@ router.post('/', async (req, res) => {
     }
 });
 
+// DELETE /api/dms/messages/:messageId
+// Delete a single DM message — only sender can delete their own
+router.delete('/messages/:messageId', async (req, res) => {
+    const { messageId } = req.params;
+    const userId = req.user.id;
+
+    try {
+        // Verify message exists and belongs to requesting user
+        const [message] = await db.query(
+            `SELECT * FROM messages WHERE id = ? AND sender_id = ?`,
+            [messageId, userId]
+        );
+
+        if (message.length === 0) {
+            return res.status(403).json({ error: 'Message not found or not yours' });
+        }
+
+        await db.query('DELETE FROM messages WHERE id = ?', [messageId]);
+
+        res.json({ message: 'Message deleted', messageId });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+router.delete('/:dmId/clear', async (req, res) => {
+    const { dmId } = req.params;
+    const userId = req.user.id;
+
+    try {
+        const [membership] = await db.query(
+            `SELECT * FROM channel_members WHERE channel_id = ? AND user_id = ?`,
+            [dmId, userId]
+        );
+
+        if (membership.length === 0) {
+            return res.status(403).json({ error: 'Not a member of this DM' });
+        }
+
+        // Just UPDATE cleared_at directly — row already exists
+        await db.query(
+            `UPDATE channel_members SET cleared_at = NOW()
+             WHERE channel_id = ? AND user_id = ?`,
+            [dmId, userId]
+        );
+
+        res.json({ message: 'DM cleared', dmId });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 //GET ALL MY DMs----------------------
 //GET /api/dms
 router.get('/', async (req, res) => {

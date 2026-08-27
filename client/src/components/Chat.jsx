@@ -9,6 +9,8 @@ import SearchBar from './SearchBar';
 import NotificationBell from './NotificationBell';
 import EmptyState from './EmptyState';
 
+const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+
 function Chat({ accessToken, user, onLogout }) {
   const [connected, setConnected] = useState(false);
   const [socket, setSocket] = useState(null);
@@ -22,15 +24,27 @@ function Chat({ accessToken, user, onLogout }) {
 
 
   useEffect(() => {
-    const newSocket = io('http://localhost:5000', {
+    const newSocket = io(socketUrl, {
       auth: { token: accessToken }
     });
 
     newSocket.on('connect', () => setConnected(true));
-    newSocket.on('connect_error', err => console.log('socket error:', err.message));
+    newSocket.on('disconnect', reason => {
+      setConnected(false);
+      console.warn('socket disconnected:', reason);
+    });
+    newSocket.on('connect_error', err => {
+      setConnected(false);
+      console.error('socket connection error:', err.message);
+    });
 
     setSocket(newSocket);
-    return () => newSocket.disconnect();
+    return () => {
+      newSocket.off('connect');
+      newSocket.off('disconnect');
+      newSocket.off('connect_error');
+      newSocket.disconnect();
+    };
   }, [accessToken]);
 
   //listen for new messages at chat level to update unread counts
