@@ -28,7 +28,10 @@ function Auth({ onAuth }) {
         body: JSON.stringify(body)
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || (data.details && data.details.join(', '))); return; }
+      if (!res.ok) {
+        setError(data.details?.join(', ') || data.error || 'Request failed');
+        return;
+      }
       onAuth({ accessToken: data.accessToken, user: data.user });
     } catch (err) {
       setError('Connection failed');
