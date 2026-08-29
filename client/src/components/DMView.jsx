@@ -21,7 +21,7 @@ function DMView({ dm, accessToken, socket, user }) {
       setLoading(true);
       try {
         const res = await fetch(
-          `http://localhost:5000/api/messages/${dm.id}?limit=50`,
+          `${import.meta.env.VITE_SERVER_URL}/api/messages/${dm.id}?limit=50`,
           { headers: { Authorization: `Bearer ${accessToken}` } }
         );
         const data = await res.json();
@@ -51,7 +51,7 @@ function DMView({ dm, accessToken, socket, user }) {
 
     try {
       const res = await fetch(
-        `http://localhost:5000/api/messages/${dm.id}?before=${oldestId}&limit=50`,
+        `${import.meta.env.VITE_SERVER_URL}/api/messages/${dm.id}?before=${oldestId}&limit=50`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
       const data = await res.json();
@@ -126,7 +126,7 @@ function DMView({ dm, accessToken, socket, user }) {
 
     try {
       const res = await fetch(
-        `http://localhost:5000/api/dms/messages/${messageId}`,
+        `${import.meta.env.VITE_SERVER_URL}/api/dms/messages/${messageId}`,
         {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${accessToken}` }
@@ -150,7 +150,7 @@ function DMView({ dm, accessToken, socket, user }) {
 
     try {
       const res = await fetch(
-        `http://localhost:5000/api/dms/${dm.id}/clear`,
+        `${import.meta.env.VITE_SERVER_URL}/api/dms/${dm.id}/clear`,
         {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${accessToken}` }

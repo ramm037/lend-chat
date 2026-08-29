@@ -34,7 +34,7 @@ function ChannelView({ channel, accessToken, socket, user }) {
             setLoading(true);
             try {
                 const res = await fetch(
-                    `http://localhost:5000/api/messages/${channel.id}?limit=50`,
+                    `${import.meta.env.VITE_SERVER_URL}/api/messages/${channel.id}?limit=50`,
                     {
                         headers: { Authorization: `Bearer ${accessToken}` }
                     }
@@ -52,7 +52,7 @@ function ChannelView({ channel, accessToken, socket, user }) {
 
         const fetchDetails = async () => {
             const res = await fetch(
-                `http://localhost:5000/api/channels/${channel.id}`,
+                `${import.meta.env.VITE_SERVER_URL}/api/channels/${channel.id}`,
                 { headers: { Authorization: `Bearer ${accessToken}` } }
             );
             const data = await res.json();
@@ -83,7 +83,7 @@ function ChannelView({ channel, accessToken, socket, user }) {
 
         try {
             const res = await fetch(
-                `http://localhost:5000/api/messages/${channel.id}?before=${oldestId}&limit=50`,
+                `${import.meta.env.VITE_SERVER_URL}/api/messages/${channel.id}?before=${oldestId}&limit=50`,
                 { headers: { Authorization: `Bearer ${accessToken}` } }
             );
 

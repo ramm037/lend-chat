@@ -16,7 +16,7 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
 
     const fetchMyChannels = async () => {
         try {
-            const res = await fetch('http://localhost:5000/api/channels', { headers: authHeaders });
+            const res = await fetch('${import.meta.env.VITE_SERVER_URL}/api/channels', { headers: authHeaders });
             const data = await res.json();
             setMyChannels(data.channels || []);
         } catch (err) {
@@ -26,7 +26,7 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
 
     const fetchAllChannels = async () => {
         try {
-            const res = await fetch('http://localhost:5000/api/channels/all', { headers: authHeaders });
+            const res = await fetch('${import.meta.env.VITE_SERVER_URL}/api/channels/all', { headers: authHeaders });
             const data = await res.json();
             setAllChannels(data.channels || []);
         } catch (err) {
@@ -35,13 +35,13 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
     };
 
     const fetchMyDMs = async () => {
-        const res = await fetch('http://localhost:5000/api/dms', { headers: authHeaders });
+        const res = await fetch('${import.meta.env.VITE_SERVER_URL}/api/dms', { headers: authHeaders });
         const data = await res.json();
         setMyDMs(data.dms || []);
     };
 
     const fetchAllUsers = async () => {
-        const res = await fetch('http://localhost:5000/api/dms/users', { headers: authHeaders });
+        const res = await fetch('${import.meta.env.VITE_SERVER_URL}/api/dms/users', { headers: authHeaders });
         const data = await res.json();
         setAllUsers(data.users || []);
     };
@@ -67,7 +67,7 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
         if (!newChannelName.trim()) return;
         setError('');
         try {
-            const res = await fetch('http://localhost:5000/api/channels', {
+            const res = await fetch('${import.meta.env.VITE_SERVER_URL}/api/channels', {
                 method: 'POST',
                 headers: authHeaders,
                 body: JSON.stringify({ name: newChannelName })
@@ -84,7 +84,7 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
 
     const joinChannel = async (channelId) => {
         try {
-            const res = await fetch(`http://localhost:5000/api/channels/${channelId}/join`, {
+            const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/api/channels/${channelId}/join`, {
                 method: 'POST',
                 headers: authHeaders
             });
@@ -102,7 +102,7 @@ function Sidebar({ accessToken, onSelectChannel, selectedChannelId, onSelectDM, 
     };
 
     const startDM = async (targetUserId) => {
-        const res = await fetch('http://localhost:5000/api/dms', {
+        const res = await fetch('${import.meta.env.VITE_SERVER_URL}/api/dms', {
             method: 'POST',
             headers: authHeaders,
             body: JSON.stringify({ targetUserId })

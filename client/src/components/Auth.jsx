@@ -13,8 +13,8 @@ function Auth({ onAuth }) {
     setError('');
     setLoading(true);
     const url = isLogin
-      ? 'http://localhost:5000/api/auth/login'
-      : 'http://localhost:5000/api/auth/register';
+      ? '${import.meta.env.VITE_SERVER_URL}/api/auth/login'
+      : '${import.meta.env.VITE_SERVER_URL}/api/auth/register';
 
     const body = isLogin
       ? { email: form.email, password: form.password }

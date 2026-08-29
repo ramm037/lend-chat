@@ -10,7 +10,7 @@ function NotificationBell({ accessToken, socket }) {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/notifications', {
+        const res = await fetch('${import.meta.env.VITE_SERVER_URL}/api/notifications', {
           headers: authHeaders
         });
         const data = await res.json();
@@ -53,7 +53,7 @@ function NotificationBell({ accessToken, socket }) {
 
   const markAllRead = async () => {
     try {
-      await fetch('http://localhost:5000/api/notifications/mark-read', {
+      await fetch('${import.meta.env.VITE_SERVER_URL}/api/notifications/mark-read', {
         method: 'POST',
         headers: authHeaders
       });
@@ -65,7 +65,7 @@ function NotificationBell({ accessToken, socket }) {
 
   const deleteNotification = async (id) => {
     try {
-      await fetch(`http://localhost:5000/api/notifications/${id}`, {
+      await fetch(`${import.meta.env.VITE_SERVER_URL}/api/notifications/${id}`, {
         method: 'DELETE',
         headers: authHeaders
       });

@@ -1,13 +1,13 @@
-import { useRef, useState} from 'react';
+import { useRef, useState } from 'react';
 
-function ImageUpload({ accessToken, channelId, dmId, socket, isDM}) {
+function ImageUpload({ accessToken, channelId, dmId, socket, isDM }) {
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef(null);
 
     const handleFileChange = async (e) => {
         console.log('channelId:', channelId, 'dmId:', dmId, 'isDM:', isDM);
         const file = e.target.files[0];
-        if(!file) return;
+        if (!file) return;
 
         setUploading(true);
 
@@ -24,7 +24,7 @@ function ImageUpload({ accessToken, channelId, dmId, socket, isDM}) {
                 formData.append('channelId', channelId);
             }
 
-            const res = await fetch('http://localhost:5000/api/upload', {
+            const res = await fetch('${import.meta.env.VITE_SERVER_URL}/api/upload', {
                 method: 'POST',
                 headers: {
                     //Don't set Content-type for form data-
@@ -53,7 +53,7 @@ function ImageUpload({ accessToken, channelId, dmId, socket, isDM}) {
                     channelId,
                     newMessage: data.newMessage
                 });
-            }  
+            }
         } catch (err) {
             console.error('Upload error:', err);
             alert('Upload Failed');
@@ -69,15 +69,15 @@ function ImageUpload({ accessToken, channelId, dmId, socket, isDM}) {
         <div>
             {/* Hidden file input — triggered by the button below */}
             <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              style={{ display: 'none' }}
-              />
-              <button 
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+            />
+            <button
                 onClick={() => fileInputRef.current.click()}
-                disabled = {uploading}
+                disabled={uploading}
                 style={{
                     padding: '8px 12px',
                     borderRadius: 4,
@@ -86,10 +86,10 @@ function ImageUpload({ accessToken, channelId, dmId, socket, isDM}) {
                     cursor: uploading ? 'not-allowed' : 'pointer',
                     fontSize: 18
                 }}
-                title= "Upload Image"
-                >
-                    {uploading ? '⏳' : '📎'}
-                </button>
+                title="Upload Image"
+            >
+                {uploading ? '⏳' : '📎'}
+            </button>
         </div>
     );
 }

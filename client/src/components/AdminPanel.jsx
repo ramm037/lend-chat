@@ -12,7 +12,7 @@ function AdminPanel({ channel, members, accessToken, socket, onChannelDeleted, u
 
         try {
             const res = await fetch(
-                `http://localhost:5000/api/admin/channels/${channel.id}/messages/${messageId}`,
+                `${import.meta.env.VITE_SERVER_URL}/api/admin/channels/${channel.id}/messages/${messageId}`,
                 { method: 'DELETE', headers: authHeaders }
             );
 
@@ -33,7 +33,7 @@ function AdminPanel({ channel, members, accessToken, socket, onChannelDeleted, u
 
         try {
             const res = await fetch(
-                `http://localhost:5000/api/admin/channels/${channel.id}/members/${targetUserId}`,
+                `${import.meta.env.VITE_SERVER_URL}/api/admin/channels/${channel.id}/members/${targetUserId}`,
                 { method: 'DELETE', headers: authHeaders }
             );
 
@@ -58,7 +58,7 @@ function AdminPanel({ channel, members, accessToken, socket, onChannelDeleted, u
 
         try {
             const res = await fetch(
-                `http://localhost:5000/api/admin/channels/${channel.id}`,
+                `${import.meta.env.VITE_SERVER_URL}/api/admin/channels/${channel.id}`,
                 { method: 'DELETE', headers: authHeaders }
             );
 

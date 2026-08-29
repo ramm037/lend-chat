@@ -15,11 +15,11 @@ function App() {
     //data = { accessToken , user }
     setAccessToken(data.accessToken);
     setUser(data.user);
-    
+
   };
 
   const handleLogout = async () => {
-    await fetch('http://localhost:5000/api/auth/logout', {
+    await fetch('${import.meta.env.VITE_SERVER_URL}/api/auth/logout', {
       method: 'POST',
       credentials: 'include' // sends teh httpOnly cookie
     });

@@ -39,10 +39,10 @@ function SearchBar({ accessToken, onSelectChannel, onSelectDM }) {
         try {
             //Run both searches simultaneously
             const [usersRes, messageRes] = await Promise.all([
-                fetch(`http://localhost:5000/api/search/users?q=${encodeURIComponent(q)}`, {
+                fetch(`${import.meta.env.VITE_SERVER_URL}/api/search/users?q=${encodeURIComponent(q)}`, {
                     headers: authHeaders
                 }),
-                fetch(`http://localhost:5000/api/search/messages?q=${encodeURIComponent(q)}`, {
+                fetch(`${import.meta.env.VITE_SERVER_URL}/api/search/messages?q=${encodeURIComponent(q)}`, {
                     headers: authHeaders
                 })
             ]);
@@ -75,7 +75,7 @@ function SearchBar({ accessToken, onSelectChannel, onSelectDM }) {
     const handlUserClick = async (user) => {
         //Stat or open DM with this user
         try {
-            const res = await fetch('http://localhost:5000/api/dms', {
+            const res = await fetch('${import.meta.env.VITE_SERVER_URL}/api/dms', {
                 method: 'POST',
                 headers: { ...authHeaders, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ targetUserId: user.id })
