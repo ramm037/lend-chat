@@ -75,7 +75,7 @@ function SearchBar({ accessToken, onSelectChannel, onSelectDM }) {
     const handlUserClick = async (user) => {
         //Stat or open DM with this user
         try {
-            const res = await fetch('${import.meta.env.VITE_SERVER_URL}/api/dms', {
+            const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/api/dms`, {
                 method: 'POST',
                 headers: { ...authHeaders, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ targetUserId: user.id })

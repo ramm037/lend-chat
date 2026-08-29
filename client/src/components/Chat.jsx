@@ -9,7 +9,7 @@ import SearchBar from './SearchBar';
 import NotificationBell from './NotificationBell';
 import EmptyState from './EmptyState';
 
-const socketUrl = import.meta.env.VITE_SOCKET_URL || '${import.meta.env.VITE_SERVER_URL}';
+const socketUrl = import.meta.env.VITE_SOCKET_URL || `${import.meta.env.VITE_SERVER_URL}`;
 
 function Chat({ accessToken, user, onLogout }) {
   const [connected, setConnected] = useState(false);
@@ -117,7 +117,7 @@ function Chat({ accessToken, user, onLogout }) {
     clearUnread(channel.id);
 
     //also call REST endpoint to persist last_read
-    fetch('${import.meta.env.VITE_SERVER_URL}/api/reads/mark', {
+    fetch(`${import.meta.env.VITE_SERVER_URL}/api/reads/mark`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -137,7 +137,7 @@ function Chat({ accessToken, user, onLogout }) {
 
     clearUnread(dm.id);
 
-    fetch('${import.meta.env.VITE_SERVER_URL}/api/reads/mark', {
+    fetch(`${import.meta.env.VITE_SERVER_URL}/api/reads/mark`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

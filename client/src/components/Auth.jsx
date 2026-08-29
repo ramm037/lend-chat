@@ -13,8 +13,8 @@ function Auth({ onAuth }) {
     setError('');
     setLoading(true);
     const url = isLogin
-      ? '${import.meta.env.VITE_SERVER_URL}/api/auth/login'
-      : '${import.meta.env.VITE_SERVER_URL}/api/auth/register';
+      ? `${import.meta.env.VITE_SERVER_URL}/api/auth/login`
+      : `${import.meta.env.VITE_SERVER_URL}/api/auth/register`;
 
     const body = isLogin
       ? { email: form.email, password: form.password }

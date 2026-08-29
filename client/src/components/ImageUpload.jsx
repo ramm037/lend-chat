@@ -24,7 +24,7 @@ function ImageUpload({ accessToken, channelId, dmId, socket, isDM }) {
                 formData.append('channelId', channelId);
             }
 
-            const res = await fetch('${import.meta.env.VITE_SERVER_URL}/api/upload', {
+            const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/api/upload`, {
                 method: 'POST',
                 headers: {
                     //Don't set Content-type for form data-

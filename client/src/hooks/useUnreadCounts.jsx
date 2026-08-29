@@ -10,7 +10,7 @@ function useUnreadCounts(accessToken, socket) {
 
         const fetchUnread = async () => {
             try {
-                const res = await fetch('${import.meta.env.VITE_SERVER_URL}/api/reads/unread', {
+                const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/api/reads/unread`, {
                     headers: { Authorization: `Bearer ${accessToken}` }
                 });
 
