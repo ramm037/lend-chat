@@ -26,21 +26,12 @@ const socketRateLimit = require('./middleware/socketRateLimiter');
 
 const app = express();
 const clientOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
-  .split(',')
-  .map(origin => origin.trim())
-  .filter(Boolean);
-const corsOptions = {
-  origin(origin, callback) {
-    // Requests without an Origin header are non-browser clients such as curl.
-    if (!origin || clientOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error(`Origin ${origin} is not allowed by CORS`));
-  },
-  credentials: true
-};
-
+  
 app.use(cors({
-  ...corsOptions
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  credentials: true
 }));
+
 app.use(express.json());
 
 //cookie parser must come before routes so req.cookies is available 
@@ -51,7 +42,10 @@ app.use(cookieParser());
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: corsOptions,
+  cors: {
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    credentials: true
+  },
   // Defaults are suitable for normal networks; explicit values make the
   // heartbeat behaviour clear and avoid short proxy idle timeouts.
   pingInterval: 25000,
