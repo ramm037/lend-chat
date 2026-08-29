@@ -3,16 +3,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
 const { generateAccessToken, generateRefreshToken } = require('../utils/token');
+const e = require('express');
 const router = express.Router();
 const validate = require('../middleware/validate');
-
-const isProduction = process.env.NODE_ENV === 'production';
-const refreshCookieOptions = {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000
-};
 
 // register
 
@@ -67,7 +60,12 @@ router.post('/register', validate('register'), async (req, res) => {
         //httpOnly means javascript cannot read this cookie at all
         //only the browser sends it automatically on requests
         //this protects against XSS attacks stealing your refresh token
-        res.cookie('refreshToken', refreshToken, refreshCookieOptions);
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
 
         //access token goes in the response body
         //aclient stores it in memory (react state), not local storage
@@ -86,7 +84,7 @@ router.post('/register', validate('register'), async (req, res) => {
 // ─── LOGIN ──────────────────────────────────────────────────
 
 //login with validation
-router.post('/login', validate('login'),async (req, res) => {
+router.post('/login', validate('login'), async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -120,7 +118,12 @@ router.post('/login', validate('login'),async (req, res) => {
             [user.id, refreshToken]
         );
 
-        res.cookie('refreshToken', refreshToken, refreshCookieOptions);
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
 
         res.json({
             message: 'Login Successfull',
@@ -187,11 +190,7 @@ router.post('/logout', async (req, res) => {
     }
 
     //clear the cookie from the browser
-    res.clearCookie('refreshToken', {
-        httpOnly: true,
-        secure: isProduction,
-        sameSite: isProduction ? 'none' : 'lax'
-    });
+    res.clearCookie('refreshToken');
     res.json({ message: 'Logged out' });
 
 });

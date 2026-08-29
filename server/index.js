@@ -76,6 +76,9 @@ const io = new Server(server, {
   pingTimeout: 60000
 });
 
+//Apply general rate limter to all routes
+app.use('/api/', apiLimiter);
+
 // Basic REST route to confirm Express itself is alive
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
@@ -101,8 +104,6 @@ app.use('/api/notifications', notificationRoutes);
 
 app.use('/api/admin', adminRoutes);
 
-//Apply general rate limter to all routes
-app.use('/api/', apiLimiter);
 
 //404 handler - must come after all routes
 app.use(notFound);

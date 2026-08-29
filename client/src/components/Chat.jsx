@@ -9,7 +9,7 @@ import SearchBar from './SearchBar';
 import NotificationBell from './NotificationBell';
 import EmptyState from './EmptyState';
 
-const socketUrl = import.meta.env.VITE_SOCKET_URL || `${import.meta.env.VITE_SERVER_URL}`;
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
 
 function Chat({ accessToken, user, onLogout }) {
   const [connected, setConnected] = useState(false);
@@ -20,11 +20,11 @@ function Chat({ accessToken, user, onLogout }) {
 
   //presencehoook = returns {userId: isOnline} map
   const onlineUsers = usePresence(accessToken, socket);
-  const { unreadCounts, incrementUnread, clearUnread } = useUnreadCounts(accessToken, socket);
+  const { unreadCounts, incrementUnread, clearUnread } = useUnreadCounts(accessToken);
 
 
   useEffect(() => {
-    const newSocket = io(import.meta.env.VITE_SERVER_URL, {
+    const newSocket = io(SERVER_URL, {
       auth: { token: accessToken }
     });
 
@@ -38,7 +38,8 @@ function Chat({ accessToken, user, onLogout }) {
       console.error('socket connection error:', err.message);
     });
 
-    setSocket(newSocket);
+    // defer to avoid synchronous setState in effect body
+    Promise.resolve().then(() => setSocket(newSocket));
     return () => {
       newSocket.off('connect');
       newSocket.off('disconnect');
@@ -117,7 +118,7 @@ function Chat({ accessToken, user, onLogout }) {
     clearUnread(channel.id);
 
     //also call REST endpoint to persist last_read
-    fetch(`${import.meta.env.VITE_SERVER_URL}/api/reads/mark`, {
+    fetch(`${SERVER_URL}/api/reads/mark`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -137,7 +138,7 @@ function Chat({ accessToken, user, onLogout }) {
 
     clearUnread(dm.id);
 
-    fetch(`${import.meta.env.VITE_SERVER_URL}/api/reads/mark`, {
+    fetch(`${SERVER_URL}/api/reads/mark`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -177,7 +178,9 @@ function Chat({ accessToken, user, onLogout }) {
           justifyContent: 'space-between',
           gap: 16,
           backgroundColor: 'var(--surface)',
-          backdropFilter: 'blur(10px)'
+          backdropFilter: 'blur(10px)',
+          position: 'relative',
+          zIndex: 100
         }}>
           {/* Logo + username */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
