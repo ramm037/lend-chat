@@ -1,5 +1,7 @@
 const mysql = require('mysql2');
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 
 // createPool keeps multiple DB connections ready.
 // If two users register at the same time, they don't
@@ -10,7 +12,9 @@ const pool = mysql.createPool({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   port: process.env.DB_PORT || 3306,
-  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
+  ssl: process.env.DB_SSL === 'true' ? {
+    ca: fs.readFileSync(path.join(__dirname, 'ca.pem'))
+  } : false
 });
 
 // .promise() lets us use async/await instead of callbacks.
