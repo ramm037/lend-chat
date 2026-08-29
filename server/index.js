@@ -25,15 +25,15 @@ const socketRateLimit = require('./middleware/socketRateLimiter');
 
 
 const app = express();
-const allowedOrigins = process.env.CLIENT_URL 
-  ? process.env.CLIENT_URL.split(',') 
+const allowedOrigins = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(',')
   : ['http://localhost:5173'];
 
 app.use(cors({
   origin: function (origin, callback) {
     if (
-      !origin || 
-      allowedOrigins.includes(origin) || 
+      !origin ||
+      allowedOrigins.includes(origin) ||
       allowedOrigins.includes('*') ||
       (origin && origin.endsWith('.vercel.app'))
     ) {
@@ -58,8 +58,8 @@ const io = new Server(server, {
   cors: {
     origin: function (origin, callback) {
       if (
-        !origin || 
-        allowedOrigins.includes(origin) || 
+        !origin ||
+        allowedOrigins.includes(origin) ||
         allowedOrigins.includes('*') ||
         (origin && origin.endsWith('.vercel.app'))
       ) {
@@ -82,6 +82,18 @@ app.use('/api/', apiLimiter);
 // Basic REST route to confirm Express itself is alive
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+app.get('/api/debug', (req, res) => {
+  res.json({
+    DB_HOST: process.env.DB_HOST,
+    DB_PORT: process.env.DB_PORT,
+    DB_NAME: process.env.DB_NAME,
+    DB_USER: process.env.DB_USER,
+    DB_SSL: process.env.DB_SSL,
+    NODE_ENV: process.env.NODE_ENV,
+    HAS_PASSWORD: !!process.env.DB_PASSWORD
+  });
 });
 
 app.use('/api/auth', authRoutes);
