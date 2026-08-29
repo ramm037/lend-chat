@@ -347,8 +347,8 @@ io.on('connection', async (socket) => {
       );
 
       const newDM = {
-        id: result.insertId,
         dm_id: dmId,
+        id: result.insertId,
         content: content.trim(),
         sender_id: userId,
         username,
