@@ -13,7 +13,11 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
   port: process.env.DB_PORT || 3306,
   ssl: process.env.DB_SSL === 'true' ? {
-    ca: fs.readFileSync(path.join(__dirname, 'ca.pem'))
+    ca: process.env.DB_CA_CERT 
+      ? process.env.DB_CA_CERT.replace(/\\n/g, '\n')
+      : (fs.existsSync(path.join(__dirname, 'ca.pem')) 
+          ? fs.readFileSync(path.join(__dirname, 'ca.pem')) 
+          : undefined)
   } : false
 });
 
